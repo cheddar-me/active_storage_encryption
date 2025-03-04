@@ -198,23 +198,9 @@ GEM
       unicode-display_width (>= 2.4.0, < 4.0)
     rubocop-ast (1.38.1)
       parser (>= 3.3.1.0)
-    rubocop-minitest (0.37.0)
-      lint_roller (~> 1.1)
-      rubocop (>= 1.61, < 2.0)
-      rubocop-ast (>= 1.38.0, < 2.0)
     rubocop-performance (1.23.1)
       rubocop (>= 1.48.1, < 2.0)
       rubocop-ast (>= 1.31.1, < 2.0)
-    rubocop-rails (2.29.1)
-      activesupport (>= 4.2.0)
-      rack (>= 1.1)
-      rubocop (>= 1.52.0, < 2.0)
-      rubocop-ast (>= 1.31.1, < 2.0)
-    rubocop-rails-omakase (1.0.0)
-      rubocop
-      rubocop-minitest
-      rubocop-performance
-      rubocop-rails
     ruby-progressbar (1.13.0)
     securerandom (0.4.1)
     sqlite3 (2.6.0-arm64-darwin)
@@ -252,8 +238,8 @@ PLATFORMS
 
 DEPENDENCIES
   active_storage_encryption!
+  activestorage
   puma
-  rubocop-rails-omakase
   sqlite3
   standard (>= 1.35.1)
 

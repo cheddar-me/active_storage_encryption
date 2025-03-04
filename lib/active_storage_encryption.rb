@@ -4,10 +4,8 @@ require "active_storage_encryption/engine"
 module ActiveStorageEncryption
   autoload :PrivateUrlPolicy, __dir__ + "/active_storage_encryption/private_url_policy.rb"
   autoload :EncryptedBlobsController, __dir__ + "/active_storage_encryption/encrypted_blobs_controller.rb"
-  autoload :ResumableGCSUpload, __dir__ + "/active_storage_encryption/resumable_gcs_upload.rb"
-
   autoload :EncryptedDiskService, __dir__ + "/active_storage_encryption/encrypted_disk_service.rb"
-  autoload :EncryptedGCSService, __dir__ + "/active_storage_encryption/encrypted_gcs_service.rb"
+  autoload :Overrides, __dir__ + "/active_storage_encryption/overrides.rb"
 
   class IncorrectEncryptionKey < ArgumentError
   end
