@@ -161,7 +161,6 @@ module ActiveStorageEncryption
   end
 end
 
-
 module ActiveStorageEncryption
   module Overrides
     module BlobIdentifiableInstanceMethods

@@ -1,14 +1,14 @@
 require_relative "lib/active_storage_encryption/version"
 
 Gem::Specification.new do |spec|
-  spec.name        = "active_storage_encryption"
-  spec.version     = ActiveStorageEncryption::VERSION
-  spec.authors     = [ "Julik Tarkhanov", "Sebastian van Hesteren"]
-  spec.email       = [ "me@julik.nl" ]
-  spec.homepage    = "https://github.com/cheddar-me/active_storage_encryption"
-  spec.summary     = "Customer-supplied encryption key support for ActiveStorage blobs."
+  spec.name = "active_storage_encryption"
+  spec.version = ActiveStorageEncryption::VERSION
+  spec.authors = ["Julik Tarkhanov", "Sebastian van Hesteren"]
+  spec.email = ["me@julik.nl"]
+  spec.homepage = "https://github.com/cheddar-me/active_storage_encryption"
+  spec.summary = "Customer-supplied encryption key support for ActiveStorage blobs."
   spec.description = "Adds customer-supplied encryption keys to storage services."
-  spec.license     = "MIT"
+  spec.license = "MIT"
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the "allowed_push_host"
   # to allow pushing to a single host or delete this section to allow pushing to any host.
