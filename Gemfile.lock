@@ -2,6 +2,7 @@ PATH
   remote: .
   specs:
     active_storage_encryption (0.1.0)
+      activestorage
       block_cipher_kit
       rails (>= 7.2.2.1)
 

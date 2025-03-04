@@ -1,0 +1,14 @@
+development:
+  public: true
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+
+test:
+  public: true
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+
+encrypted_disk:
+  service: EncryptedDisk
+  root: <%= Rails.root.join("storage") %>
+  private_url_policy: stream

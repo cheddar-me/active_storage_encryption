@@ -41,7 +41,7 @@ module ActiveStorageEncryption::PrivateUrlPolicy
     )
 
     # Both url_helpers and url_options are on the DiskService, but we need them here for other Services too
-    url_helpers = Rails.application.routes.url_helpers
+    url_helpers = ActiveStorageEncryption::Engine.routes.url_helpers
     url_options = ActiveStorage::Current.url_options
 
     if url_options.blank?

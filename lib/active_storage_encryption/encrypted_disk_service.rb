@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "block_cipher_kit"
+require "active_storage/service/disk_service"
 
 module ActiveStorageEncryption
   # Provides a local encrypted store for ActiveStorage blobs.
@@ -82,6 +83,7 @@ module ActiveStorageEncryption
           purpose: :encrypted_put
         )
 
+        url_helpers = ActiveStorageEncryption::Engine.routes.url_helpers
         url_helpers.encrypted_blob_put_url(upload_token, url_options).tap do |generated_url|
           payload[:url] = generated_url
         end
