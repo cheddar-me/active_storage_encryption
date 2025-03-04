@@ -7,11 +7,13 @@ on:
 
 jobs:
   lint:
+    name: "Lint"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # TODO: Appraisals for Rails 7 and Rails 8 differ in minimum Ruby version: 3.1.0+ vs 3.2.2+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -19,9 +21,10 @@ jobs:
           bundler-cache: true
 
       - name: Lint code for consistent style
-        run: bin/rubocop -f github
+        run: bundle exec standardrb
 
   test:
+    name: "Tests"
     runs-on: ubuntu-latest
 
     # services:
@@ -49,11 +52,4 @@ jobs:
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare test
 
-      - name: Keep screenshots from failed system tests
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: screenshots
-          path: ${{ github.workspace }}/tmp/screenshots
-          if-no-files-found: ignore
 
