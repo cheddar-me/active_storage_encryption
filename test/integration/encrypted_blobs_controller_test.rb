@@ -23,6 +23,9 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
     ActiveStorage::Blob.service = @non_encrypted_default_service
     ActiveStorage::Blob.services = {@service.name => @service} # That too
 
+    # This needs to be set
+    ActiveStorageEncryption::Engine.routes.default_url_options = {host: "www.example.com"}
+
     # We need to use a hostname for ActiveStorage which is in the Rails authorized hosts.
     # see https://stackoverflow.com/a/60573259/153886
     ActiveStorage::Current.url_options = {
