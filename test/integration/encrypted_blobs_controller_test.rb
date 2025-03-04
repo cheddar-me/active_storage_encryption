@@ -29,10 +29,8 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
       host: "www.example.com",
       protocol: "https"
     }
-
-    freeze_time
-
-    https!
+    freeze_time # For testing expiring tokens
+    https! # So that all requests are simulated as SSL
   end
 
   def teardown
@@ -41,6 +39,10 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
     ActiveStorage::Blob.services = @previous_services
     FileUtils.rm_rf(@storage_dir)
     FileUtils.rm_rf(@other_storage_dir)
+  end
+
+  def engine_routes
+    ActiveStorageEncryption::Engine.routes.url_helpers
   end
 
   test "show() returns the decrypted blob body" do
@@ -94,7 +96,7 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
   end
 
   test "show() refuses a request with a garbage token" do
-    get encrypted_blob_streaming_get_path(token: "garbage", filename: "exfil.bin")
+    get engine_routes.encrypted_blob_streaming_get_path(token: "garbage", filename: "exfil.bin")
     assert_response :forbidden
   end
 
@@ -186,7 +188,7 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
       }
     }
 
-    post create_encrypted_blob_direct_upload_url, params: params
+    post engine_routes.create_encrypted_blob_direct_upload_url, params: params
 
     assert_response :success
 
@@ -220,7 +222,7 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
       }
     }
 
-    post create_encrypted_blob_direct_upload_url, params: params
+    post engine_routes.create_encrypted_blob_direct_upload_url, params: params
     assert_response :success
 
     body_payload = JSON.parse(response.body, symbolize_names: true)
@@ -248,7 +250,7 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
       }
     }
 
-    post create_encrypted_blob_direct_upload_url, params: params
+    post engine_routes.create_encrypted_blob_direct_upload_url, params: params
     assert_response :unprocessable_entity
   end
 

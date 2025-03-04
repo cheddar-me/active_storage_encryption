@@ -8,6 +8,15 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     @service = ActiveStorageEncryption::EncryptedDiskService.new(root: @storage_dir)
     @service.name = "amazing_encrypting_disk_service" # Needed for the DiskController and service lookup
     @previous_default_service = ActiveStorage::Blob.service
+
+    # The EncryptedDiskService generates URLs by itself, so it needs
+    # ActiveStorage::Current.url_options to be set
+    # We need to use a hostname for ActiveStorage which is in the Rails authorized hosts.
+    # see https://stackoverflow.com/a/60573259/153886
+    ActiveStorage::Current.url_options = {
+      host: "www.example.com",
+      protocol: "https"
+    }
   end
 
   def teardown
