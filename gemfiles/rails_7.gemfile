@@ -2,9 +2,6 @@
 
 source "https://rubygems.org"
 
-gem "puma"
-gem "sqlite3"
-gem "activestorage"
 gem "rails", "< 8.0"
 
 gemspec path: "../"

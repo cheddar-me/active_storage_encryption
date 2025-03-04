@@ -131,6 +131,10 @@ module ActiveStorageEncryption
       super.merge!("x-active-storage-encryption-key" => Base64.strict_encode64(encryption_key), "content-md5" => checksum)
     end
 
+    def headers_for_private_download(key, encryption_key:, **)
+      {"x-active-storage-encryption-key" => Base64.strict_encode64(encryption_key)}
+    end
+
     private
 
     def create_scheme(key, encryption_key_from_blob)

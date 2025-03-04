@@ -27,8 +27,14 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", ">= 7.2.2.1"
   spec.add_dependency "block_cipher_kit", ">= 0.0.4"
-  spec.add_development_dependency "sqlite3"
   spec.add_dependency "activestorage"
+
+  # Testing with cloud services
+  spec.add_development_dependency "aws-sdk-s3"
+  spec.add_development_dependency "net-http"
+
+  # Code formatting, linting and testing
+  spec.add_development_dependency "sqlite3"
   spec.add_development_dependency "standard", ">= 1.35.1"
   spec.add_development_dependency "appraisal"
   spec.add_development_dependency "magic_frozen_string_literal"
