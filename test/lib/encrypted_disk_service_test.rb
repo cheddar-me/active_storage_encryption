@@ -61,7 +61,7 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     b64md5 = Digest::MD5.base64digest(plaintext_upload_bytes)
 
     url = @service.url_for_direct_upload(key, expires_in: 60.seconds, content_type: "binary/octet-stream", content_length: plaintext_upload_bytes.bytesize, checksum: b64md5, encryption_key: k, custom_metadata: {})
-    assert url.include?("/encrypted-storage/blob/")
+    assert url.include?("/active-storage-encryption/blob/")
 
     uri = URI.parse(url)
     # Do a super-minimalistic test on the DiskController. ActionController is actually a Rack app (or, rather: every controller action is a Rack app).
@@ -104,7 +104,7 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
     url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
-    assert url.include?("/encrypted-storage/blob/")
+    assert url.include?("/active-storage-encryption/blob/")
 
     uri = URI.parse(url)
 
@@ -150,7 +150,7 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
     url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
-    assert url.include?("/encrypted-storage/blob/")
+    assert url.include?("/active-storage-encryption/blob/")
 
     uri = URI.parse(url)
 
