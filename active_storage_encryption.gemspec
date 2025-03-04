@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
   end
 
   spec.add_dependency "rails", ">= 7.2.2.1"
-  spec.add_dependency "block_cipher_kit"
+  spec.add_dependency "block_cipher_kit", ">= 0.0.4"
   spec.add_development_dependency "sqlite3"
   spec.add_dependency "activestorage"
   spec.add_development_dependency "standard", ">= 1.35.1"
