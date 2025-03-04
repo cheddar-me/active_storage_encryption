@@ -8,3 +8,6 @@
 /test/dummy/log/*.log
 /test/dummy/storage/
 /test/dummy/tmp/
+
+# The Bundler lockfile should not be cached because its contents is arch-dependent
+Gemfile.lock
