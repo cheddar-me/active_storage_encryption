@@ -105,7 +105,7 @@ Implementation details:
 * Presigned URLs are subject to the [same constraints](#private-url-constraints) as with GCS. S3 will only serve you objects if you supply the headers. If you wish to generate URLs that can be used without headers, streaming goes through our provided controller.
 * The `#compose` operation is not hopless with S3, so there is no reduction in functionality vis-a-vis the standard `S3Service`.
 
-## EncryptedDiskSevice - Filesystem
+### EncryptedDiskSevice - Filesystem
 
 Can be used instead of the cloud services in development, or on the server if desired. The service will use AES-256-GCM encryption, with a way to switch to a different/more modern encryption scheme in the future.
 

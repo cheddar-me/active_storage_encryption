@@ -13,11 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # TODO: Appraisals for Rails 7 and Rails 8 differ in minimum Ruby version: 3.1.0+ vs 3.2.2+
+      # Note: Appraisals for Rails 7 and Rails 8 differ in minimum Ruby version: 3.1.0+ vs 3.2.2+
+      # So the version of Ruby to use here is the version that is able to run all Appraisals
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.1.1
+          ruby-version: 3.2.2
           bundler-cache: true
 
       - name: Lint code for consistent style
@@ -49,7 +50,7 @@ jobs:
       - name: Run tests
         env:
           RAILS_ENV: test
-          # REDIS_URL: redis://localhost:6379/0
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: bin/rails app:db:test:prepare app:test
-
 
