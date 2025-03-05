@@ -6,13 +6,12 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
   def setup
     @storage_dir = Dir.mktmpdir
 
-    @service1 = ActiveStorageEncryption::EncryptedDiskService.new(root: @storage_dir + "/primary")
+    @service1 = ActiveStorageEncryption::EncryptedDiskService.new(root: @storage_dir + "/primary-encrypted")
     @service2 = ActiveStorage::Service::DiskService.new(root: @storage_dir + "/secondary-plain")
     @service3 = ActiveStorageEncryption::EncryptedDiskService.new(root: @storage_dir + "/secondary-encrypted")
 
     @service = ActiveStorageEncryption::EncryptedMirrorService.new(primary: @service1, mirrors: [@service2, @service3])
-    @service.name = "amazing_encrypting_disk_service" # Needed for the DiskController and service lookup
-
+    @service.name = "amazing_mirror_service" # Needed for service lookup
     @previous_default_service = ActiveStorage::Blob.service
 
     # The EncryptedDiskService generates URLs by itself, so it needs
