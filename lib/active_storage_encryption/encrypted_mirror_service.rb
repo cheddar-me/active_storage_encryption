@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "active_storage/service/mirror_service"
 
 class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::MirrorService
@@ -31,7 +32,7 @@ class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::
     true
   end
 
-  def upload(key, io, checksum: nil, encryption_key:, **options)
+  def upload(key, io, encryption_key:, checksum: nil, **options)
     io.rewind
     if primary.try(:encrypted?)
       primary.upload(key, io, checksum: checksum, encryption_key: encryption_key, **options)
@@ -45,12 +46,11 @@ class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::
     instrument :mirror, key: key, checksum: checksum do
       mirrors_in_need_of_mirroring = mirrors.select { |service| !service.exist?(key) }
       return if mirrors_in_need_of_mirroring.empty?
-      primary.open(key, checksum: checksum, encryption_key:) do |io|
-        mirrors_in_need_of_mirroring.each do |service|
+      primary.open(key, checksum: checksum, verify: checksum.present?, encryption_key: encryption_key) do |io|
+        mirrors_in_need_of_mirroring.each do |target|
           io.rewind
-          # Accommodate Services which do not accept `encryption_key`
-          options = service.try(:encrypted?) ? {encryption_key: encryption_key} : {}
-          service.upload(key, io, checksum: checksum, **options)
+          options = target.try(:encrypted?) ? {encryption_key: encryption_key} : {}
+          target.upload(key, io, checksum: checksum, **options)
         end
       end
     end

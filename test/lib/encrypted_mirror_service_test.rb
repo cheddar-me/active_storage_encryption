@@ -60,10 +60,12 @@ class ActiveStorageEncryption::EncryptedMirrorServiceTest < ActiveSupport::TestC
   end
 
   def test_uploads_to_primary_and_mirrors_to_secondaries
+    # So that the job can find our service
+    ActiveStorage::Blob.service = @service
+
     key = "key-1"
     k = Random.bytes(68)
     plaintext_upload_bytes = Random.bytes(42)
-
     @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
 
     assert @service.exist?(key)
