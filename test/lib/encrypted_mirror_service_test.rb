@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCase
+class ActiveStorageEncryption::EncryptedMirrorServiceTest < ActiveSupport::TestCase
   def setup
     @storage_dir = Dir.mktmpdir
 
