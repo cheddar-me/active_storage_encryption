@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "lib/active_storage_encryption/version"
 
 Gem::Specification.new do |spec|
@@ -28,4 +30,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "sqlite3"
   spec.add_dependency "activestorage"
   spec.add_development_dependency "standard", ">= 1.35.1"
+  spec.add_development_dependency "appraisal"
 end
