@@ -62,11 +62,7 @@ module ActiveStorageEncryption
         end
       end
     end
-  end
-end
 
-module ActiveStorageEncryption
-  module Overrides
     module EncryptedBlobInstanceMethods
       def service_encrypted?
         !!service&.try(:encrypted?)
@@ -160,11 +156,7 @@ module ActiveStorageEncryption
         super
       end
     end
-  end
-end
 
-module ActiveStorageEncryption
-  module Overrides
     module BlobIdentifiableInstanceMethods
       private
 
@@ -182,13 +174,9 @@ module ActiveStorageEncryption
         end
       end
     end
-  end
-end
 
-module ActiveStorageEncryption
-  module Overrides
     module DownloaderInstanceMethods
-      def open(key, encryption_key: nil, checksum: nil, verify: true, name: "ActiveStorage-", tmpdir: nil)
+      def open(key, encryption_key: nil, checksum: nil, verify: true, name: "ActiveStorage-", tmpdir: nil, &blk)
         open_tempfile(name, tmpdir) do |file|
           download(key, file, encryption_key: encryption_key)
           verify_integrity_of(file, checksum: checksum) if verify
