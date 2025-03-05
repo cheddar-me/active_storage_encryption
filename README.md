@@ -1,6 +1,6 @@
 ## What does this do?
 
-This library will enable the use of per-blob encryption keys with ActiveStorage. It enables file encryption with a separate encryption key generated for every `ActiveStorage::Blob`. It uses [CSEK](https://cloud.google.com/storage/docs/encryption/using-customer-supplied-keys) on Google Cloud, [SSE-K](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html#specifying-s3-c-encryption) on AWS, and [block_cipher_kit](https://rubygems.org/gems/block_cipher_kit) for files on disk to add a layer of encryption to every uploaded file. Every `Blob` gets its own, random encryption key.
+This library will enable the use of per-blob encryption keys with ActiveStorage. It enables file encryption with a separate encryption key generated for every `ActiveStorage::Blob`. It uses [CSEK](https://cloud.google.com/storage/docs/encryption/using-customer-supplied-keys) on Google Cloud, [SSE-C](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html#specifying-s3-c-encryption) on AWS, and [block_cipher_kit](https://rubygems.org/gems/block_cipher_kit) for files on disk to add a layer of encryption to every uploaded file. Every `Blob` gets its own, random encryption key.
 
 During streaming download, either the cloud provider or a Rails controller will decrypt the requested chunk of the file as it gets served to the client.
 
@@ -101,7 +101,7 @@ The `EncryptedS3Service` supports most of the features of the stock `S3Service`.
 
 Implementation details:
 
-* SSE-K is a feature that AWS provides. Other services offering S3-compatible object storage (Minio, Ceph...) may not support this feature - check the documentation of your provider.
+* SSE-C is a feature that AWS provides. Other services offering S3-compatible object storage (Minio, Ceph...) may not support this feature - check the documentation of your provider.
 * Presigned URLs are subject to the [same constraints](#private-url-constraints) as with GCS. S3 will only serve you objects if you supply the headers. If you wish to generate URLs that can be used without headers, streaming goes through our provided controller.
 * The `#compose` operation is not hopless with S3, so there is no reduction in functionality vis-a-vis the standard `S3Service`.
 
