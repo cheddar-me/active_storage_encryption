@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # This scheme uses GCM encryption with CTR-based random access. The auth tag is stored
 # at the end of the message. The message is prefixed by a SHA2 digest of the encryption key.
 class ActiveStorageEncryption::EncryptedDiskService::V2Scheme

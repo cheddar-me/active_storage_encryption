@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "active_storage_encryption/version"
 require "active_storage_encryption/engine"
 

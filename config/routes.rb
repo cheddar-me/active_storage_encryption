@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 ActiveStorageEncryption::Engine.routes.draw do
   put "/blob/:token", to: "encrypted_blobs#update", as: "encrypted_blob_put"
   get "/blob/:token/*filename(.:format)", to: "encrypted_blobs#show", as: "encrypted_blob_streaming_get"

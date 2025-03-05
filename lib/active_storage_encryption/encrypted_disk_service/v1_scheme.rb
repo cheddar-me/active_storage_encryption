@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ActiveStorageEncryption::EncryptedDiskService::V1Scheme
   def initialize(encryption_key)
     @scheme = BlockCipherKit::AES256CFBCIVScheme.new(encryption_key)

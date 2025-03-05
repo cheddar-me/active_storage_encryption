@@ -31,4 +31,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "activestorage"
   spec.add_development_dependency "standard", ">= 1.35.1"
   spec.add_development_dependency "appraisal"
+  spec.add_development_dependency "magic_frozen_string_literal"
 end
