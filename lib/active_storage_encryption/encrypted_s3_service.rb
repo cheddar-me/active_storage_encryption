@@ -28,24 +28,34 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
   end
 
   def exist?(key)
-    # Same as with `stream` - we can't really do a HEAD request with the SDK.
-    # This method thus needs a separate override to apply the same one-byte-GET trick. The way
-    # we need to treat the outcome is different though. The API of `Service#exist?` does _not_ provide
-    # an extra parameter for the encryption key, and it should not be needed either - cloud services
-    # both allow you to check whether the object exists, without furnishing the key. But it does
-    # need a small workaround. The workaround is to do a 1-byte GET:
+    # The stock S3Service uses S3::Object#exists? here. That method does
+    # a HEAD request to the S3 bucket under the hood. But there is a problem
+    # with that approach: to get all the metadata attributes of an object on S3
+    # (which is what the HEAD request should return to you) you need the encryption key.
+    # The interface of the ActiveStorage services does not provide for extra arguments
+    # for `Service#exist?`, so all we would get using that SDK call would be an error.
+    #
+    # But we don't need the object metadata - we need to know is whether the object exists
+    # at all. And this can be done with a GET request instead. We ask S3 to give us the first byte of the
+    # object. S3 will then raise an exception - the exception will be different
+    # depending on whether the object does not exist _or_ the object does exist, but
+    # is encrypted. We can use the distinction between those exceptions to tell
+    # whether the object is there or not.
+    #
+    # There is also a case where the object is not encrypted - in that situation
+    # our single-byte GET request will actually succeed. This also means that the
+    # object exists in the bucket.
     object_for(key).get(range: "bytes=0-0")
-    # ...which will raise an exception. If we get here without getting an exception -
-    # it means the object is there, but it is not encrypted.
-    # For example, it was stored using a stock S3Service.
+    # If we get here without an exception - the object exists in the bucket,
+    # but is not encrypted. For example, it was stored using a stock S3Service.
     true
   rescue Aws::S3::Errors::InvalidRequest
-    # ...and that exception will end up here. It tells us the object is there, but we didn't
-    # furnish the encryption key. Which is fine:
-    # it will have a message like "The object was stored using a form of Server Side Encryption..."
-    # To us this is an indication that the object is there. The workaround ends here :-)
+    # With this exception S3 tells us that the object exists but we have to furnish
+    # the encryption key (the exception will have a message with "object was stored
+    # using a form of Server Side Encryption...").
     true
   rescue Aws::S3::Errors::NoSuchKey
+    # And this truly means the object is not present
     false
   end
 
@@ -132,7 +142,7 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
     # This will give you the content-length of the object, and the SDK will pass the correct encryption headers.
     # There is an issue in the SDK here https://github.com/aws/aws-sdk-ruby/issues/1342 which is allegedly fixed
     # by https://github.com/aws/aws-sdk-ruby/pull/1343/files but it doesn't seem like it.
-    # Also, we do not only call exists?, but also `Object#content_length` - which does not have a way to pass
+    # Also, we do not only call `S3::Object#exists?`, but also `S3::Object#content_length` - which does not have a way to pass
     # encryption options either.
     response = object.get(range: "bytes=0-0", **sse_options(encryption_key))
     object_content_length = response.content_range.scan(/\d+$/).first.to_i
