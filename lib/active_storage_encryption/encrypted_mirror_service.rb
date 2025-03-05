@@ -5,10 +5,21 @@ class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::
   delegate :private_url_policy, to: :primary
 
   class MirrorJobWithEncryption < ActiveStorage::MirrorJob
-    def perform(key, checksum:, encryption_key_token:)
-      decrypted_token = decrypt_and_verify(encryption_key_token, purpose: :mirror)
-      encryption_key = Base64.decode64(decrypted_token.fetch(:encryption_key))
-      ActiveStorage::Blob.service.try(:mirror_with_encryption, key, checksum: checksum, encryption_key: encryption_key)
+    def perform(key, checksum:, service_name:, encryption_key_token:)
+      service = lookup_service(service_name)
+      service.try(:mirror_with_encryption, key, checksum: checksum, encryption_key: encryption_key_from_token(encryption_key_token))
+    end
+
+    def encryption_key_from_token(encryption_key_token)
+      decrypted_token = ActiveStorageEncryption.token_encryptor.decrypt_and_verify(encryption_key_token, purpose: :mirror)
+      Base64.decode64(decrypted_token.fetch("encryption_key"))
+    end
+
+    def lookup_service(name)
+      # This should be the name in the config, NOT the class name
+      service = ActiveStorage::Blob.services.fetch(name) { ActiveStorage::Blob.service }
+      raise ArgumentError, "#{service.name} is not providing file encryption" unless service.try(:encrypted?)
+      service
     end
   end
 
@@ -45,6 +56,12 @@ class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::
     end
   end
 
+  def service_name
+    # ActiveStorage::Service::DiskService => Disk
+    # Overridden because in Rails 8 this is "self.class.name.split("::").third.remove("Service")"
+    self.class.name.split("::").last.remove("Service")
+  end
+
   private
 
   def mirror_later_with_encryption(key, checksum:, encryption_key: nil)
@@ -54,6 +71,6 @@ class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::
       },
       purpose: :mirror
     )
-    MirrorJobWithEncryption.perform_later(key, checksum: checksum, encryption_key_token:)
+    MirrorJobWithEncryption.perform_later(key, checksum: checksum, service_name:, encryption_key_token:)
   end
 end

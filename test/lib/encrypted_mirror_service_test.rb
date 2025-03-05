@@ -3,6 +3,8 @@
 require "test_helper"
 
 class ActiveStorageEncryption::EncryptedMirrorServiceTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   def setup
     @storage_dir = Dir.mktmpdir
 
@@ -55,6 +57,26 @@ class ActiveStorageEncryption::EncryptedMirrorServiceTest < ActiveSupport::TestC
       @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k, checksum: correct_base64_md5)
     end
     assert @service.exist?(key)
+  end
+
+  def test_uploads_to_primary_and_mirrors_to_secondaries
+    key = "key-1"
+    k = Random.bytes(68)
+    plaintext_upload_bytes = Random.bytes(42)
+
+    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
+
+    assert @service.exist?(key)
+    assert @service1.exist?(key) # Primary
+    refute @service2.exist?(key)
+    refute @service3.exist?(key)
+
+    perform_enqueued_jobs
+
+    assert @service2.exist?(key)
+    assert @service3.exist?(key)
+    assert_equal plaintext_upload_bytes, @service2.download(key)
+    assert_equal plaintext_upload_bytes, @service3.download(key, encryption_key: k)
   end
 
   def test_generates_direct_upload_url_for_primary
