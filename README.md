@@ -34,6 +34,8 @@ end
 
 And.. that's it! For both GCS and S3, you will need to create an additional ActiveStorage service. The configuration is exactly the same as stock ActiveStorage services, with the addition of the `private_url_policy` [parameter.](#private-url-constraints)
 
+Note that you need to appropriately configure CORS on your storage bucket to allow direct uploads [for S3](#S3Service) and for [GCP.](#EncryptedGCSService)
+
 ## How it works
 
 This gem protects from a relatively common data breach scenario - cloud account access. Should an attacker gain access to your cloud storage bucket, the files stored there will be of no use to them without them also having a separate, specific encryption key for every file they want to retrieve.
@@ -94,6 +96,10 @@ Implementation details:
 
 * Presigned URLs are subject to the [same constraints](#private-url-constraints) as the other providers. GCP will only serve you objects if you supply the headers. If you wish to generate URLs that can be used without headers, streaming goes through our provided controller.
 * In the stock `Service` the `#compose` operation is "hopless": you tell GCP to "splice" multiple objects in-situ without having to download their content into your application. With encryption, `#compose` can't be performed "hoplessly" as the "compose" RPC call for encrypted objects requires the source objects be encrypted with the same encryption key - all of them. The resulting object will also be encrypted with that key. With this gem, every `Blob` gets encrypted with its own random key, so performing a `#compose` requires downloading the objects, decrypting them and reuploading the composed object. This gets done in a streaming manner to conserve disk space and memory (we provide a resumable upload client for GCS even though the official SDK does not), but the operation is no longer "hopless".
+* You will need to enable the following headers in your bucket CORS configuration for `PUT` requests:
+  * `x-goog-encryption-algorithm`
+  * `x-goog-encryption-key`
+  * `x-goog-encryption-key-sha256`
 
 ### EncryptedS3Service - AWS S3
 
@@ -104,6 +110,10 @@ Implementation details:
 * SSE-C is a feature that AWS provides. Other services offering S3-compatible object storage (Minio, Ceph...) may not support this feature - check the documentation of your provider.
 * Presigned URLs are subject to the [same constraints](#private-url-constraints) as with GCS. S3 will only serve you objects if you supply the headers. If you wish to generate URLs that can be used without headers, streaming goes through our provided controller.
 * The `#compose` operation is not hopless with S3, so there is no reduction in functionality vis-a-vis the standard `S3Service`.
+* You will need to enable the following headers in your bucket CORS configuration for `PUT` requests:
+  * `x-amz-server-side-encryption-customer-algorithm`
+  * `x-amz-server-side-encryption-customer-key`
+  * `x-amz-server-side-encryption-customer-key-MD5`
 
 ### EncryptedDiskSevice - Filesystem
 
