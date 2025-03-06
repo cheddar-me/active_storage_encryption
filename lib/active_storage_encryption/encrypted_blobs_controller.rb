@@ -15,6 +15,9 @@ class ActiveStorageEncryption::EncryptedBlobsController < ActionController::Base
   self.etag_with_template_digest = false
   skip_forgery_protection
 
+  # Accepts PUT requests for direct uploads to the EncryptedDiskService. It can actually accept
+  # uploads to any encrypted service, but for S3 and GCP the upload can be done to the cloud storage
+  # bucket directly.
   def update
     params = read_params_from_token_and_headers_for_put
     service = lookup_service(params[:service_name])
@@ -29,6 +32,7 @@ class ActiveStorageEncryption::EncryptedBlobsController < ActionController::Base
     head :unprocessable_entity
   end
 
+  # Streams the decrypted contents of an encrypted blob
   def show
     params = read_params_from_token_and_headers_for_get
     service = lookup_service(params[:service_name])
@@ -46,10 +50,12 @@ class ActiveStorageEncryption::EncryptedBlobsController < ActionController::Base
     head :forbidden
   end
 
+  # Creates a Blob record with a random encryption key and returns the details for PUTing it
+  # This is only necessary because in Rails there is some disagreement regarding the service_name parameter.
+  # See https://github.com/rails/rails/issues/38940
+  # It does not require the service to support encryption. However, we mandate that the MD5 be provided upfront,
+  # so that it gets included into the signature
   def create_direct_upload
-    # This is only necessary because in Rails there is some disagreement regarding the service_name parameter.
-    # See https://github.com/rails/rails/issues/38940
-    # It does not require the service to support encryption. However, we mandate that the MD5 be provided upfront.
     blob_params = params.require(:blob).permit(:filename, :byte_size, :checksum, :content_type, metadata: {})
     unless blob_params[:checksum]
       render(plain: "The `checksum' is required", status: :unprocessable_entity) and return
@@ -94,10 +100,6 @@ class ActiveStorageEncryption::EncryptedBlobsController < ActionController::Base
     b64_md5_from_headers = request.headers["content-md5"]
     raise InvalidParams, "Content-MD5 header is required" if b64_md5_from_headers.blank?
     raise InvalidParams, "Content-MD5 differs from the known checksum" unless Rack::Utils.secure_compare(b64_md5_from_headers, token_params.fetch(:checksum))
-
-    # Ensure the encryption key was not tampered with
-    encryption_key_b64sha = Digest::SHA256.base64digest(encryption_key)
-    raise InvalidParams, "Incorrect checksum for the encryption key" unless Rack::Utils.secure_compare(encryption_key_b64sha, token_params.fetch(:encryption_key_sha256))
 
     {
       key: token_params.fetch(:key),
