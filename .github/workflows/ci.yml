@@ -24,19 +24,14 @@ jobs:
       - name: Lint code for consistent style
         run: bundle exec standardrb
 
-  test:
-    name: "Tests"
+  test_rails7:
+    name: "Tests (Rails 7)"
     runs-on: ubuntu-latest
-
-    # services:
-    #  redis:
-    #    image: redis
-    #    ports:
-    #      - 6379:6379
-    #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails_7.gemfile
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y google-chrome-stable curl libjemalloc2 sqlite3
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y curl libjemalloc2 sqlite3
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,7 +39,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.1.1
+          ruby-version: 3.2.2
           bundler-cache: true
 
       - name: Run tests
@@ -52,5 +47,29 @@ jobs:
           RAILS_ENV: test
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: bin/rails app:db:test:prepare app:test
+        run: bin/rails app:test
 
+  test_rails_8:
+    name: "Tests (Rails 8)"
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails_8.gemfile
+    steps:
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y curl libjemalloc2 sqlite3
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2.2
+          bundler-cache: true
+
+      - name: Run tests
+        env:
+          RAILS_ENV: test
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: bin/rails app:test
