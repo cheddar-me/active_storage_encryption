@@ -9,6 +9,7 @@ module ActiveStorageEncryption
   autoload :EncryptedDiskService, __dir__ + "/active_storage_encryption/encrypted_disk_service.rb"
   autoload :EncryptedS3Service, __dir__ + "/active_storage_encryption/encrypted_s3_service.rb"
   autoload :Overrides, __dir__ + "/active_storage_encryption/overrides.rb"
+  autoload :SoftWrapper, __dir__ + "/active_storage_encryption/soft_wrapper.rb"
 
   class IncorrectEncryptionKey < ArgumentError
   end
