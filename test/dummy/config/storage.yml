@@ -12,3 +12,10 @@ encrypted_disk:
   service: EncryptedDisk
   root: <%= Rails.root.join("storage") %>
   private_url_policy: stream
+
+encrypted_mirror:
+  service: EncryptedMirror
+  primary:
+    - encrypted_disk
+  mirrors:
+    - test
