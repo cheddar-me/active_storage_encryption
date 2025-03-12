@@ -5,6 +5,6 @@
 #
 # * Force-require a file at "active_storage/service/encrypted_disk", from any path on the $LOAD_PATH
 # * Instantiate a class called "ActiveStorage::Service::EncryptedDiskService"
-require_relative "../../active_storage_encryption/active_storage_encryption"
+require_relative "../../active_storage_encryption"
 class ActiveStorage::Service::EncryptedDiskService < ActiveStorageEncryption::EncryptedDiskService
 end
