@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    Dir["{app,config,db,lib,test,gemfiles}/**/*", "MIT-LICENSE", "Appraisals", "Rakefile", "README.md"]
+    Dir["{app,config,db,lib,test,gemfiles,bin}/**/*", "MIT-LICENSE", "Appraisals", "Rakefile", "README.md"]
   end
 
   spec.add_dependency "rails", ">= 7.2.2.1"
