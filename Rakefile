@@ -13,3 +13,5 @@ task :format do
   `bundle exec standardrb --fix`
   `bundle exec magic_frozen_string_literal .`
 end
+
+task default: ["app:test"]
