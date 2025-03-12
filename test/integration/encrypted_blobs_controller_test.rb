@@ -50,18 +50,52 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
 
   test "show() returns the decrypted blob body" do
     rng = Random.new(Minitest.seed)
-
-    key = SecureRandom.base36(12)
-    encryption_key = rng.bytes(32)
     plaintext = rng.bytes(512)
-    @service.upload(key, StringIO.new(plaintext).binmode, encryption_key: encryption_key)
 
-    streaming_url = @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
+    assert blob.encryption_key
+
+    streaming_url = blob.url(disposition: "inline")
     get streaming_url
 
     assert_response :success
     assert_equal "x-office/severance", response.headers["content-type"]
     assert_equal plaintext, response.body
+  end
+
+  test "show() serves HTTP ranges" do
+    rng = Random.new(Minitest.seed)
+    plaintext = rng.bytes(5.megabytes + 13)
+
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
+    assert blob.encryption_key
+
+    streaming_url = blob.url(disposition: "inline")
+    get streaming_url, headers: {"Range" => "bytes=0-0"}
+
+    assert_response :partial_content
+    assert_equal "1", response.headers["content-length"]
+    assert_equal "bytes 0-0/5242893", response.headers["content-range"]
+    assert_equal "x-office/severance", response.headers["content-type"]
+    assert_equal plaintext[0..0], response.body
+
+    get streaming_url, headers: {"Range" => "bytes=1-2"}
+
+    assert_response :partial_content
+    assert_equal "2", response.headers["content-length"]
+    assert_equal "bytes 1-2/5242893", response.headers["content-range"]
+    assert_equal "x-office/severance", response.headers["content-type"]
+    assert_equal plaintext[1..2], response.body
+
+    get streaming_url, headers: {"Range" => "bytes=1-2,8-10,12-23"}
+
+    assert_response :partial_content
+    assert response.headers["content-type"].start_with?("multipart/byteranges; boundary=")
+    assert_nil response.headers["content-range"]
+    assert_equal 350, response.body.bytesize
+
+    get streaming_url, headers: {"Range" => "bytes=99999999999999999-99999999999999999"}
+    assert_response :range_not_satisfiable
   end
 
   test "show() refuses a request which goes to a non-encrypted Service" do
