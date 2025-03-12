@@ -6,11 +6,6 @@ class ActiveStorageEncryption::EncryptedDiskService::V1Scheme
     @key_digest = Digest::SHA256.digest(encryption_key.byteslice(0, 16 + 32)) # In this scheme the IV is suffixed with the key
   end
 
-  def storage_overhead
-    # SHA of the encryption key
-    @key_digest.bytesize
-  end
-
   def streaming_decrypt(from_ciphertext_io:, into_plaintext_io: nil, &blk)
     validate_key!(from_ciphertext_io)
     @scheme.streaming_decrypt(from_ciphertext_io:, into_plaintext_io:, &blk)
