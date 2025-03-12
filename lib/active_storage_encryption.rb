@@ -10,6 +10,7 @@ module ActiveStorageEncryption
   autoload :EncryptedMirrorService, __dir__ + "/active_storage_encryption/encrypted_mirror_service.rb"
   autoload :EncryptedS3Service, __dir__ + "/active_storage_encryption/encrypted_s3_service.rb"
   autoload :Overrides, __dir__ + "/active_storage_encryption/overrides.rb"
+  autoload :ServeByteRange, __dir__ + "/active_storage_encryption/serve_byte_range.rb"
 
   class IncorrectEncryptionKey < ArgumentError
   end
