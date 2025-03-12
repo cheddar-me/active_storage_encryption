@@ -1,6 +1,4 @@
-## What does this do?
-
-This library will enable the use of per-blob encryption keys with ActiveStorage. It enables file encryption with a separate encryption key generated for every `ActiveStorage::Blob`. It uses [CSEK](https://cloud.google.com/storage/docs/encryption/using-customer-supplied-keys) on Google Cloud, [SSE-C](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html#specifying-s3-c-encryption) on AWS, and [block_cipher_kit](https://rubygems.org/gems/block_cipher_kit) for files on disk to add a layer of encryption to every uploaded file. Every `Blob` gets its own, random encryption key.
+This library enables use of per-blob encryption keys with ActiveStorage, with a separate encryption key for every `Blob`. To implement encryption, it enables the use of  [CSEK](https://cloud.google.com/storage/docs/encryption/using-customer-supplied-keys) on Google Cloud, [SSE-C](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html#specifying-s3-c-encryption) on AWS, and [block_cipher_kit](https://rubygems.org/gems/block_cipher_kit) for files on disk.
 
 During streaming download, either the cloud provider or a Rails controller will decrypt the requested chunk of the file as it gets served to the client.
 
@@ -185,9 +183,30 @@ When we stream through the controller, we encrypt the token instead of just sign
 
 ## Direct uploads
 
+Our recommended setup is to have your encrypted ActiveStorage service as an additional service configuration in `service.yml`:
+
+```yaml
+development:
+  public: true
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+
+encrypted_disk:
+  service: EncryptedDisk
+  root: <%= Rails.root.join("storage", "encrypted") %>
+  private_url_policy: stream
+
+```
+
+To upload into a named service that is non-default, you will need to use a different method for generating your presigned upload URL, as the standard Rails controller that creates the `Blob` records prior to upload does not allow you to set it. If you follow the [officlal Rails guide](https://guides.rubyonrails.org/active_storage_overview.html#direct-uploads) you will need to use a different URL helper for generating a URL to create blobs, which _does_ accommodate the service name. The URL you need to use is `create_encrypted_blob_direct_upload_url` (instead of `rails_direct_uploads_url`).
+
+This is not going to be necessary once the corresponding [Rails issue](https://github.com/rails/rails/issues/38940) will get addressed.
+
 All supported services accept the encryption key as part of the headers for the PUT direct upload. The provided Service implementations will generate the correct headers for you. However, your upload client _must_ use the headers provided to you by the server, and not invent its own. The standard ActiveStorage JS bundles honor those headers - but if you use your own uploader you will need to ensure it honors and forwards the headers too.
 
 We also configure the services to generate _and_ require the `Content-MD5` header. The client doing the PUT will need to precompute the MD5 for the object before starting the PUT request or getting a PUT url (as the checksum gets signed by the cloud SDK or by our `EncryptedDiskService`). This is so that any data transmission errors can be intercepted early (we know of one case where a bug in Ruby, combined with a particular HTTP client library, led to bytes getting uploaded out of order).
+
+Note that the encryption headers may require amending your CORS configuration - see the documentation per service regarding that.
 
 ## Security considerations / notes
 
