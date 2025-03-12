@@ -11,10 +11,11 @@ Gem::Specification.new do |spec|
   spec.summary = "Customer-supplied encryption key support for ActiveStorage blobs."
   spec.description = "Adds customer-supplied encryption keys to storage services."
   spec.license = "MIT"
+  spec.required_ruby_version = ">= 3.1.0"
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the "allowed_push_host"
   # to allow pushing to a single host or delete this section to allow pushing to any host.
-  spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
   # The homepage link on rubygems.org only appears if you add homepage_uri. Just spec.homepage is not enough.
   spec.metadata["homepage_uri"] = spec.homepage
