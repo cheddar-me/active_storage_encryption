@@ -18,11 +18,14 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
     service = lookup_service(params[:service_name])
     raise InvalidParams, "#{service.name} does not allow private URLs" if service.private_url_policy == :disable
 
-    key = params[:key]
-    encryption_key = params[:encryption_key]
-    blob_byte_size = params[:blob_byte_size]
-
-    stream_blob(service:, key:, encryption_key:, blob_byte_size:, filename: params[:filename], disposition: params[:disposition] || DEFAULT_BLOB_STREAMING_DISPOSITION, type: params[:content_type])
+    stream_blob(service:,
+      key: params[:key],
+      encryption_key: params[:encryption_key],
+      blob_byte_size: params[:blob_byte_size],
+      filename: params[:filename],
+      disposition: params[:disposition] || DEFAULT_BLOB_STREAMING_DISPOSITION,
+      type: params[:content_type]
+    )
   rescue ActiveRecord::RecordNotFound
     return head :not_found
   rescue InvalidParams, ActiveStorageEncryption::StreamingTokenInvalidOrExpired, ActiveSupport::MessageEncryptor::InvalidMessage, ActiveStorageEncryption::IncorrectEncryptionKey
@@ -65,13 +68,15 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
 
   def stream_blob(service:, key:, blob_byte_size:, encryption_key:, filename:, disposition:, type:)
     streaming_proc = ->(client_requested_range, response_io) {
-      chunk_size = 5.megabytes
-      client_requested_range.begin.step(client_requested_range.end, chunk_size) do |subrange_start|
-        chunk_end = subrange_start + chunk_size - 1
-        subrange_end = chunk_end > client_requested_range.end ? client_requested_range.end : chunk_end
-        range_on_service = subrange_start..subrange_end
-        response_io.write(service.download_chunk(key, range_on_service, encryption_key:))
-      end
+      warn "Downloading chunk #{client_requested_range.inspect}"
+      response_io.write(service.download_chunk(key, client_requested_range, encryption_key:))
+      #chunk_size = 5.megabytes
+      #client_requested_range.begin.step(client_requested_range.end, chunk_size) do |subrange_start|
+      #  chunk_end = subrange_start + chunk_size - 1
+      #  subrange_end = chunk_end > client_requested_range.end ? client_requested_range.end : chunk_end
+      #  range_on_service = subrange_start..subrange_end
+      #  response_io.write(service.download_chunk(key, range_on_service, encryption_key:))
+      #end
     }
 
     # We need to ensure Rack::ETag does not suddenly start buffering us, see

@@ -48,7 +48,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     ActiveStorageEncryption::Engine.routes.url_helpers
   end
 
-  test "show() returns the decrypted blob body" do
+  test "show() serves the complete decrypted blob body" do
     rng = Random.new(Minitest.seed)
     plaintext = rng.bytes(512)
 
