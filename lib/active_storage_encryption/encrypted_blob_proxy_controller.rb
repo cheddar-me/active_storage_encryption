@@ -69,35 +69,41 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
   end
 
   def stream_blob(service:, key:, blob_byte_size:, encryption_key:, filename:, disposition:, type:)
+    # The ActiveStorage::ProxyController buffers the entire response into memory
+    # when serving multipart byte ranges, which is extremely inefficient. We use our own thing
+    # which can actually stream from the Service directly, using byte ranges. This limits the
+    # amount of data buffered to 5 megabytes. There can be a better scheme with pagewise caching
+    # in tempfiles, but that's for later.
     streaming_proc = ->(client_requested_range, response_io) {
       chunk_size = 5.megabytes
       client_requested_range.begin.step(client_requested_range.end, chunk_size) do |subrange_start|
-       chunk_end = subrange_start + chunk_size - 1
-       subrange_end = chunk_end > client_requested_range.end ? client_requested_range.end : chunk_end
-       range_on_service = subrange_start..subrange_end
-       response_io.write(service.download_chunk(key, range_on_service, encryption_key:))
+        chunk_end = subrange_start + chunk_size - 1
+        subrange_end = (chunk_end > client_requested_range.end) ? client_requested_range.end : chunk_end
+        range_on_service = subrange_start..subrange_end
+        response_io.write(service.download_chunk(key, range_on_service, encryption_key:))
       end
     }
 
-    # We need to ensure Rack::ETag does not suddenly start buffering us, see
-    # https://github.com/rack/rack/issues/1619#issuecomment-606315714
-    # Set this even when not streaming for consistency. The fact that there would be
-    # a weak ETag generated would mean that the middleware buffers, so we have tests for that.
-    # We need either the ETag from the response, or the Last-Modified
-    if !request.headers["If-None-Match"] && !request.headers["If-Range"]
-      response.headers["Last-Modified"] = Time.now.httpdate
-    end
-
-    # Disable buffering for both nginx and Google Load Balancer, see
+    # A few header things for streaming:
+    # 1. We need to ensure Rack::ETag does not suddenly start buffering us, for that either
+    # the ETag header or the Last-Modified header must be set. We set an ETag from the blob key,
+    # so nothing to do here.
+    # 2. Disable buffering for both nginx and Google Load Balancer, see
     # https://cloud.google.com/appengine/docs/flexible/how-requests-are-handled?tab=python#x-accel-buffering
     response.headers["X-Accel-Buffering"] = "no"
-    # Make sure Rack::Deflater does not touch our response body either, see
+    # 3. Make sure Rack::Deflater does not touch our response body either, see
     # https://github.com/felixbuenemann/xlsxtream/issues/14#issuecomment-529569548
     response.headers["Content-Encoding"] = "identity"
 
+    # Range requests use ETags to ensure that if a client goes to download a range of a resource
+    # it has already has some data of, it either gets the full resource - if it changed - or
+    # the bytes the client requested. An ActiveStorage blob never changes once it has been uploaded -
+    # it stays on the service "just as it was" until it gets deleted, so we can reliably use the key
+    # of the blob as the ETag.
+    blob_etag = key.inspect # Strong ETags must be quoted
     status, headers, ranges_body = ActiveStorageEncryption::ServeByteRange.serve_ranges(request.env,
       resource_size: blob_byte_size,
-      etag: request.headers["If-None-Match"], # TODO
+      etag: blob_etag, # TODO
       resource_content_type: type,
       &streaming_proc)
 

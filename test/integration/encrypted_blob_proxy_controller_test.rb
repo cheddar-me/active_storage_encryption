@@ -60,6 +60,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
 
     assert_response :success
     assert_equal "x-office/severance", response.headers["content-type"]
+    assert_equal blob.key.inspect, response.headers["etag"]
     assert_equal plaintext, response.body
   end
 
