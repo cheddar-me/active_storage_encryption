@@ -108,8 +108,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
 
     streaming_url = @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"),
       expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance",
-      blob_byte_size: plaintext.bytesize
-    )
+      blob_byte_size: plaintext.bytesize)
 
     # Sneak in a non-encrypted service under the same key
     ActiveStorage::Blob.services[@service.name] = @non_encrypted_default_service
@@ -129,7 +128,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     another_encryption_key = rng.bytes(32)
     refute_equal encryption_key, another_encryption_key
 
-    streaming_url = @service.url(key, encryption_key: another_encryption_key, 
+    streaming_url = @service.url(key, encryption_key: another_encryption_key,
       filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds,
       disposition: "inline", content_type: "x-office/severance", blob_byte_size: plaintext.bytesize)
     get streaming_url
@@ -206,7 +205,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
   test "show() refuses a request if the service no longer permits private URLs, even if the URL was generated when it used to permit them" do
     rng = Random.new(Minitest.seed)
 
-    key = SecureRandom.base36(12)
+    SecureRandom.base36(12)
     plaintext = rng.bytes(512)
 
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
