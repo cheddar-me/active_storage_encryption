@@ -64,7 +64,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
   end
 
   test "show() serves a blob of 0 size" do
-    rng = Random.new(Minitest.seed)
+    Random.new(Minitest.seed)
     plaintext = "".b
 
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
