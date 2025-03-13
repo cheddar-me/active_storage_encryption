@@ -18,6 +18,9 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
     service = lookup_service(params[:service_name])
     raise InvalidParams, "#{service.name} does not allow private URLs" if service.private_url_policy == :disable
 
+    # Test the encryption key beforehand, so that the exception does not get raised when serving the actual body
+    service.download_chunk(params[:key], 0..0, encryption_key: params[:encryption_key])
+
     stream_blob(service:,
       key: params[:key],
       encryption_key: params[:encryption_key],

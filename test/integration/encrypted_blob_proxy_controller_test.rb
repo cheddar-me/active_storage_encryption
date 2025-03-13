@@ -63,6 +63,20 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     assert_equal plaintext, response.body
   end
 
+  test "show() serves a blob of 0 size" do
+    rng = Random.new(Minitest.seed)
+    plaintext = "".b
+
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
+    assert blob.encryption_key
+
+    streaming_url = blob.url(disposition: "inline") # This generates a URL with the byte size
+    get streaming_url
+
+    assert_response :success
+    assert response.body.empty?
+  end
+
   test "show() serves HTTP ranges" do
     rng = Random.new(Minitest.seed)
     plaintext = rng.bytes(5.megabytes + 13)
