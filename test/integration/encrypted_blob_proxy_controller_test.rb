@@ -192,7 +192,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     @service.private_url_policy = :require_headers
     streaming_url = @service.url(key, encryption_key: encryption_key,
       filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline",
-      content_type: "x-office/severance", blob_byte_size: plaintext.byte_size)
+      content_type: "x-office/severance", blob_byte_size: plaintext.bytesize)
 
     get streaming_url
     assert_response :forbidden # Without headers
@@ -203,7 +203,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     assert_equal plaintext, response.body
   end
 
-  test "show() refuses a request if the service no longer permits private URLs" do
+  test "show() refuses a request if the service no longer permits private URLs, even if the URL was generated when it used to permit them" do
     rng = Random.new(Minitest.seed)
 
     key = SecureRandom.base36(12)
@@ -211,14 +211,14 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
 
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
     assert blob.encryption_key
-    streaming_url = blob.url(key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
+    streaming_url = blob.url(disposition: "inline", content_type: "x-office/severance")
 
     @service.private_url_policy = :disable
 
     get streaming_url
     assert_response :forbidden # Without headers
 
-    get streaming_url, headers: {"HTTP_X_ACTIVE_STORAGE_ENCRYPTION_KEY" => Base64.strict_encode64(encryption_key)}
+    get streaming_url, headers: {"HTTP_X_ACTIVE_STORAGE_ENCRYPTION_KEY" => Base64.strict_encode64(blob.encryption_key)}
     assert_response :forbidden # With headers
   end
 end

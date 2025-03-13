@@ -58,6 +58,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
 
   def lookup_service(name)
     service = ActiveStorage::Blob.services.fetch(name) { ActiveStorage::Blob.service }
+    raise InvalidParams, "No ActiveStorage default service defined and service #{name.inspect} was not found" unless service
     raise InvalidParams, "#{service.name} is not providing file encryption" unless service.try(:encrypted?)
     service
   end
