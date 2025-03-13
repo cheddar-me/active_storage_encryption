@@ -4,8 +4,9 @@
 # at the end of the message. The message is prefixed by a SHA2 digest of the encryption key.
 class ActiveStorageEncryption::EncryptedDiskService::V2Scheme
   def initialize(encryption_key)
-    @scheme = BlockCipherKit::AES256GCMScheme.new(encryption_key)
-    @key_digest = Digest::SHA256.digest(encryption_key.byteslice(0, 32)) # In this scheme just the key is used
+    truncated_key = encryption_key.byteslice(0, 32)
+    @scheme = BlockCipherKit::AES256GCMScheme.new(truncated_key)
+    @key_digest = Digest::SHA256.digest(truncated_key)
   end
 
   def streaming_decrypt(from_ciphertext_io:, into_plaintext_io: nil, &blk)

@@ -25,7 +25,6 @@ module ActiveStorageEncryption::PrivateUrlPolicy
         has disabled presigned URLs (private_url_policy: disable), you have to use `Blob#download` instead.
       EOS
     end
-
     # This method requires the "blob_byte_size" because it is needed for HTTP ranges (you need to know the range of a resource),
     # The ActiveStorage::ProxyController retrieves the blob from the DB for that, but we can embed it right in the token.
     content_disposition = content_disposition_with(type: disposition, filename: filename)

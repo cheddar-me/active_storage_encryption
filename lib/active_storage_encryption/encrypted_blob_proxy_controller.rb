@@ -54,7 +54,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
       service_name: token_params.fetch(:service_name),
       disposition: token_params.fetch(:disposition),
       content_type: token_params.fetch(:content_type),
-      encryption_key: token_params.fetch(:encryption_key),
+      encryption_key: Base64.decode64(token_params.fetch(:encryption_key)),
       blob_byte_size: token_params.fetch(:blob_byte_size)
     }
   end
@@ -68,7 +68,6 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
 
   def stream_blob(service:, key:, blob_byte_size:, encryption_key:, filename:, disposition:, type:)
     streaming_proc = ->(client_requested_range, response_io) {
-      warn "Downloading chunk #{client_requested_range.inspect}"
       response_io.write(service.download_chunk(key, client_requested_range, encryption_key:))
       #chunk_size = 5.megabytes
       #client_requested_range.begin.step(client_requested_range.end, chunk_size) do |subrange_start|
