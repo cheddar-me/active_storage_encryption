@@ -52,7 +52,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
       disposition: token_params.fetch(:disposition),
       content_type: token_params.fetch(:content_type),
       encryption_key: token_params.fetch(:encryption_key),
-      blob_byte_size: blob_byte_size
+      blob_byte_size: token_params.fetch(:blob_byte_size)
     }
   end
 

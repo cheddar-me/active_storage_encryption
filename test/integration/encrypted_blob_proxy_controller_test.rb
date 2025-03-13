@@ -211,7 +211,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
 
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
     assert blob.encryption_key
-    streaming_url = blob.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
+    streaming_url = blob.url(key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
 
     @service.private_url_policy = :disable
 
