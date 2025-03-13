@@ -183,6 +183,7 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
       sse_options_for_presigned_url.delete(:sse_customer_key)
 
       options_for_super = options.merge(sse_options_for_presigned_url) # The "rest" kwargs for super are the `client_options`
+      options_for_super.delete(:blob_byte_size) # This is not a valid S3 option
       super(key, **options_for_super)
     end
   end
