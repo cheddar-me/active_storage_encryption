@@ -48,7 +48,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
 
     {
       key: token_params.fetch(:key),
-      service_name: service_name,
+      service_name: token_params.fetch(:service_name),
       disposition: token_params.fetch(:disposition),
       content_type: token_params.fetch(:content_type),
       encryption_key: token_params.fetch(:encryption_key),

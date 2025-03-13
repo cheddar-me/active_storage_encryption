@@ -207,11 +207,11 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     rng = Random.new(Minitest.seed)
 
     key = SecureRandom.base36(12)
-    encryption_key = rng.bytes(32)
     plaintext = rng.bytes(512)
-    @service.upload(key, StringIO.new(plaintext).binmode, encryption_key: encryption_key)
 
-    streaming_url = @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
+    assert blob.encryption_key
+    streaming_url = blob.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
 
     @service.private_url_policy = :disable
 
@@ -219,6 +219,6 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     assert_response :forbidden # Without headers
 
     get streaming_url, headers: {"HTTP_X_ACTIVE_STORAGE_ENCRYPTION_KEY" => Base64.strict_encode64(encryption_key)}
-    assert_response :forbidden # Without headers
+    assert_response :forbidden # With headers
   end
 end
