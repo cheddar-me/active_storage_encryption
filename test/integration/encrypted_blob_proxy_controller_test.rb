@@ -77,6 +77,21 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     assert response.body.empty?
   end
 
+  test "show() returns a 404 when the blob no longer exists on the service" do
+    Random.new(Minitest.seed)
+    plaintext = "hello"
+
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
+    assert blob.encryption_key
+
+    streaming_url = blob.url(disposition: "inline") # This generates a URL with the byte size
+    blob.service.delete(blob.key)
+
+    get streaming_url
+
+    assert_response :not_found
+  end
+
   test "show() serves HTTP ranges" do
     rng = Random.new(Minitest.seed)
     plaintext = rng.bytes(5.megabytes + 13)
