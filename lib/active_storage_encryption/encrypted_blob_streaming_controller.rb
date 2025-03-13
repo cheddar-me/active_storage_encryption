@@ -1,0 +1,115 @@
+# frozen_string_literal: true
+
+# This controller is analogous to the ActiveStorage::ProxyController. It also needs access
+# to the Blob and provides byte range support for serving the blob out. It works a bit
+# differently though - does not use ActionController:Live and serves byte ranges in a more
+# memory-efficient manner.
+class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::Base
+  include ActiveStorage::SetCurrent
+
+  class InvalidParams < StandardError
+  end
+
+  DEFAULT_BLOB_STREAMING_DISPOSITION = "inline"
+
+  self.etag_with_template_digest = false
+  skip_forgery_protection
+
+  # Streams the decrypted contents of an encrypted blob
+  def show
+    params = read_params_from_token_and_headers_for_get
+    service = lookup_service(params[:service_name])
+    raise InvalidParams, "#{service.name} does not allow private URLs" if service.private_url_policy == :disable
+
+    key = params[:key]
+    encryption_key = params[:encryption_key]
+
+    # This is the only value the ActiveStorage Service, sadly, does not provide - we need to reach for the blob.
+    # Since this can be a long action, we actually want to avoid touching the database for too long - so grab our
+    # own connection, SELECT the size of the blob and get out.
+    blob_byte_size = ActiveStorage::Blob.connection.pool.with_connection do
+      ActiveStorage::Blob.find_by_key!(key).byte_size
+    rescue ActiveRecord::RecordNotFound
+      return head :not_found
+    end
+
+    stream_blob(service:, key:, encryption_key:, blob_byte_size:, filename: params[:filename], disposition: params[:disposition] || DEFAULT_BLOB_STREAMING_DISPOSITION, type: params[:content_type])
+  rescue InvalidParams, ActiveStorageEncryption::StreamingTokenInvalidOrExpired, ActiveSupport::MessageEncryptor::InvalidMessage, ActiveStorageEncryption::IncorrectEncryptionKey
+    head :forbidden
+  end
+
+  private
+
+  def read_params_from_token_and_headers_for_get
+    token_str = params.require(:token)
+
+    # The token params for GET / private_url download are encrypted, as they contain the object encryption key.
+    token_params = ActiveStorageEncryption.token_encryptor.decrypt_and_verify(token_str, purpose: :encrypted_get).symbolize_keys
+    encryption_key = Base64.decode64(token_params.fetch(:encryption_key))
+
+    service = lookup_service(token_params.fetch(:service_name))
+
+    # To be more like cloud services: verify presence of headers, if we were asked to (but this is optional)
+    if service.private_url_policy == :require_headers
+      b64_encryption_key = request.headers["x-active-storage-encryption-key"]
+      raise InvalidParams, "x-active-storage-encryption-key header is missing" if b64_encryption_key.blank?
+      raise InvalidParams, "Incorrect encryption key supplied via header" unless Rack::Utils.secure_compare(Base64.decode64(b64_encryption_key), encryption_key)
+    end
+
+    # Verify the SHA of the encryption key
+    encryption_key_b64sha = Digest::SHA256.base64digest(encryption_key)
+    raise InvalidParams, "Incorrect encryption key supplied via token" unless Rack::Utils.secure_compare(encryption_key_b64sha, token_params.fetch(:encryption_key_sha256))
+
+    {
+      key: token_params.fetch(:key),
+      encryption_key: encryption_key,
+      service_name: token_params.fetch(:service_name),
+      disposition: token_params.fetch(:disposition),
+      content_type: token_params.fetch(:content_type)
+    }
+  end
+
+  def lookup_service(name)
+    service = ActiveStorage::Blob.services.fetch(name) { ActiveStorage::Blob.service }
+    raise InvalidParams, "#{service.name} is not providing file encryption" unless service.try(:encrypted?)
+    service
+  end
+
+  def stream_blob(service:, key:, blob_byte_size:, encryption_key:, filename:, disposition:, type:)
+    streaming_proc = ->(client_requested_range, response_io) {
+      chunk_size = 5.megabytes
+      client_requested_range.begin.step(client_requested_range.end, chunk_size) do |subrange_start|
+        chunk_end = subrange_start + chunk_size - 1
+        subrange_end = chunk_end > client_requested_range.end ? client_requested_range.end : chunk_end
+        range_on_service = subrange_start..subrange_end
+        response_io.write(service.download_chunk(key, range_on_service, encryption_key:))
+      end
+    }
+
+    # We need to ensure Rack::ETag does not suddenly start buffering us, see
+    # https://github.com/rack/rack/issues/1619#issuecomment-606315714
+    # Set this even when not streaming for consistency. The fact that there would be
+    # a weak ETag generated would mean that the middleware buffers, so we have tests for that.
+    # We need either the ETag from the response, or the Last-Modified
+    if !request.headers["If-None-Match"] && !request.headers["If-Range"]
+      response.headers["Last-Modified"] = Time.now.httpdate
+    end
+
+    # Disable buffering for both nginx and Google Load Balancer, see
+    # https://cloud.google.com/appengine/docs/flexible/how-requests-are-handled?tab=python#x-accel-buffering
+    response.headers["X-Accel-Buffering"] = "no"
+    # Make sure Rack::Deflater does not touch our response body either, see
+    # https://github.com/felixbuenemann/xlsxtream/issues/14#issuecomment-529569548
+    response.headers["Content-Encoding"] = "identity"
+
+    status, headers, ranges_body = ActiveStorageEncryption::ServeByteRange.serve_ranges(request.env,
+      resource_size: blob_byte_size,
+      etag: request.headers["If-None-Match"], # TODO
+      resource_content_type: type,
+      &streaming_proc)
+
+    response.status = status
+    headers.each { |(header, value)| response.headers[header] = value }
+    self.response_body = ranges_body
+  end
+end
