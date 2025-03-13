@@ -9,9 +9,6 @@ class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::Inte
     @service = ActiveStorageEncryption::EncryptedDiskService.new(root: @storage_dir, private_url_policy: "stream")
     @service.name = "amazing_encrypting_disk_service" # Needed for the controller and service lookup
 
-    # Hack: sneakily add our service to them configurations
-    # ActiveStorage::Blob.services.send(:services)["amazing_encrypting_disk_service"] = @service
-
     # We need to set our service as the default, because the controller does lookup from the application config -
     # which does not include the service we define here
     @previous_default_service = ActiveStorage::Blob.service
