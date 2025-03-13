@@ -28,7 +28,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
       filename: params[:filename],
       disposition: params[:disposition] || DEFAULT_BLOB_STREAMING_DISPOSITION,
       type: params[:content_type])
-  rescue ActiveRecord::RecordNotFound
+  rescue ActiveStorage::FileNotFoundError
     head :not_found
   rescue InvalidParams, ActiveStorageEncryption::StreamingTokenInvalidOrExpired, ActiveSupport::MessageEncryptor::InvalidMessage, ActiveStorageEncryption::IncorrectEncryptionKey
     head :forbidden
