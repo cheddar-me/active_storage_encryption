@@ -55,7 +55,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
     assert blob.encryption_key
 
-    streaming_url = blob.url(disposition: "inline")
+    streaming_url = blob.url(disposition: "inline") # This generates a URL with the byte size
     get streaming_url
 
     assert_response :success
@@ -70,7 +70,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new(plaintext), content_type: "x-office/severance", filename: "secret.bin", service_name: @service.name)
     assert blob.encryption_key
 
-    streaming_url = blob.url(disposition: "inline")
+    streaming_url = blob.url(disposition: "inline") # This generates a URL with the byte size
     get streaming_url, headers: {"Range" => "bytes=0-0"}
 
     assert_response :partial_content
@@ -106,7 +106,10 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     plaintext = rng.bytes(512)
     @service.upload(key, StringIO.new(plaintext).binmode, encryption_key: encryption_key)
 
-    streaming_url = @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
+    streaming_url = @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"),
+      expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance",
+      blob_byte_size: plaintext.bytesize
+    )
 
     # Sneak in a non-encrypted service under the same key
     ActiveStorage::Blob.services[@service.name] = @non_encrypted_default_service
@@ -126,7 +129,9 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     another_encryption_key = rng.bytes(32)
     refute_equal encryption_key, another_encryption_key
 
-    streaming_url = @service.url(key, encryption_key: another_encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
+    streaming_url = @service.url(key, encryption_key: another_encryption_key, 
+      filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds,
+      disposition: "inline", content_type: "x-office/severance", blob_byte_size: plaintext.bytesize)
     get streaming_url
 
     assert_response :forbidden
@@ -148,7 +153,10 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     @service.upload(key, StringIO.new(rng.bytes(512)).binmode, encryption_key: encryption_key)
 
     streaming_url = ActiveStorageEncryption.stub(:token_encryptor, -> { other_encryptor }) do
-      @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 3.seconds, disposition: "inline", content_type: "binary/octet-stream")
+      @service.url(key, encryption_key: encryption_key,
+        filename: ActiveStorage::Filename.new("private.doc"), expires_in: 3.seconds,
+        disposition: "inline", content_type: "binary/octet-stream",
+        blob_byte_size: 512)
     end
 
     get streaming_url
@@ -162,7 +170,10 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     encryption_key = rng.bytes(32)
     @service.upload(key, StringIO.new(rng.bytes(512)).binmode, encryption_key: encryption_key)
 
-    streaming_url = @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 3.seconds, disposition: "inline", content_type: "binary/octet-stream")
+    streaming_url = @service.url(key, encryption_key: encryption_key,
+      filename: ActiveStorage::Filename.new("private.doc"), expires_in: 3.seconds,
+      disposition: "inline", content_type: "binary/octet-stream",
+      blob_byte_size: 512)
     travel 5.seconds
 
     get streaming_url
@@ -179,7 +190,9 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
 
     # The policy needs to be set before we generate the token (the token includes require_headers)
     @service.private_url_policy = :require_headers
-    streaming_url = @service.url(key, encryption_key: encryption_key, filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline", content_type: "x-office/severance")
+    streaming_url = @service.url(key, encryption_key: encryption_key,
+      filename: ActiveStorage::Filename.new("private.doc"), expires_in: 30.seconds, disposition: "inline",
+      content_type: "x-office/severance", blob_byte_size: plaintext.byte_size)
 
     get streaming_url
     assert_response :forbidden # Without headers

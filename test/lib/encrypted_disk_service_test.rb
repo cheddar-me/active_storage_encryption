@@ -98,7 +98,7 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
     key = "key-1"
     encryption_key = Random.bytes(32)
-    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key:, expires_in: 10.seconds)
+    url = @service.url(key, blob_byte_size: 14, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key:, expires_in: 10.seconds)
     assert url.include?("/active-storage-encryption/blob/")
   end
 
@@ -113,7 +113,7 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
     assert_raises ActiveStorageEncryption::StreamingDisabled do
-      @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
+      @service.url(key, blob_byte_size: 12, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
     end
   end
 

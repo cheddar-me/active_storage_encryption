@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
-# This controller is analogous to the ActiveStorage::ProxyController. It also needs access
-# to the Blob and provides byte range support for serving the blob out. It works a bit
-# differently though - does not use ActionController:Live and serves byte ranges in a more
-# memory-efficient manner.
+# This controller is analogous to the ActiveStorage::ProxyController
 class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::Base
   include ActiveStorage::SetCurrent
 
@@ -23,17 +20,11 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
 
     key = params[:key]
     encryption_key = params[:encryption_key]
-
-    # This is the only value the ActiveStorage Service, sadly, does not provide - we need to reach for the blob.
-    # Since this can be a long action, we actually want to avoid touching the database for too long - so grab our
-    # own connection, SELECT the size of the blob and get out.
-    blob_byte_size = ActiveStorage::Blob.connection.pool.with_connection do
-      ActiveStorage::Blob.find_by_key!(key).byte_size
-    rescue ActiveRecord::RecordNotFound
-      return head :not_found
-    end
+    blob_byte_size = params[:blob_byte_size]
 
     stream_blob(service:, key:, encryption_key:, blob_byte_size:, filename: params[:filename], disposition: params[:disposition] || DEFAULT_BLOB_STREAMING_DISPOSITION, type: params[:content_type])
+  rescue ActiveRecord::RecordNotFound
+    return head :not_found
   rescue InvalidParams, ActiveStorageEncryption::StreamingTokenInvalidOrExpired, ActiveSupport::MessageEncryptor::InvalidMessage, ActiveStorageEncryption::IncorrectEncryptionKey
     head :forbidden
   end
@@ -46,7 +37,6 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
     # The token params for GET / private_url download are encrypted, as they contain the object encryption key.
     token_params = ActiveStorageEncryption.token_encryptor.decrypt_and_verify(token_str, purpose: :encrypted_get).symbolize_keys
     encryption_key = Base64.decode64(token_params.fetch(:encryption_key))
-
     service = lookup_service(token_params.fetch(:service_name))
 
     # To be more like cloud services: verify presence of headers, if we were asked to (but this is optional)
@@ -56,16 +46,13 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
       raise InvalidParams, "Incorrect encryption key supplied via header" unless Rack::Utils.secure_compare(Base64.decode64(b64_encryption_key), encryption_key)
     end
 
-    # Verify the SHA of the encryption key
-    encryption_key_b64sha = Digest::SHA256.base64digest(encryption_key)
-    raise InvalidParams, "Incorrect encryption key supplied via token" unless Rack::Utils.secure_compare(encryption_key_b64sha, token_params.fetch(:encryption_key_sha256))
-
     {
       key: token_params.fetch(:key),
-      encryption_key: encryption_key,
-      service_name: token_params.fetch(:service_name),
+      service_name: service_name,
       disposition: token_params.fetch(:disposition),
-      content_type: token_params.fetch(:content_type)
+      content_type: token_params.fetch(:content_type),
+      encryption_key: token_params.fetch(:encryption_key),
+      blob_byte_size: blob_byte_size
     }
   end
 

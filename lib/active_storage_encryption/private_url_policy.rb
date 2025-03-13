@@ -18,7 +18,7 @@ module ActiveStorageEncryption::PrivateUrlPolicy
     @private_url_policy
   end
 
-  def private_url_for_streaming_via_controller(key, expires_in:, filename:, content_type:, disposition:, encryption_key:)
+  def private_url_for_streaming_via_controller(key, blob_byte_size:, expires_in:, filename:, content_type:, disposition:, encryption_key:)
     if private_url_policy == :disable
       raise ActiveStorageEncryption::StreamingDisabled, <<~EOS
         Requested a signed GET URL for #{key.inspect} on service #{name}. This service
@@ -26,6 +26,8 @@ module ActiveStorageEncryption::PrivateUrlPolicy
       EOS
     end
 
+    # This method requires the "blob_byte_size" because it is needed for HTTP ranges (you need to know the range of a resource),
+    # The ActiveStorage::ProxyController retrieves the blob from the DB for that, but we can embed it right in the token.
     content_disposition = content_disposition_with(type: disposition, filename: filename)
     verified_key_with_expiration = ActiveStorageEncryption.token_encryptor.encrypt_and_sign(
       {
@@ -34,6 +36,7 @@ module ActiveStorageEncryption::PrivateUrlPolicy
         encryption_key_sha256: Digest::SHA256.base64digest(encryption_key),
         content_type: content_type,
         service_name: name,
+        blob_byte_size: blob_byte_size,
         encryption_key: Base64.strict_encode64(encryption_key)
       },
       expires_in: expires_in,
