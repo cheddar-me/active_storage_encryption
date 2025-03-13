@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class ActiveStorageEncryptionEncryptedBlobsControllerTest < ActionDispatch::IntegrationTest
+class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::IntegrationTest
   setup do
     @storage_dir = Dir.mktmpdir
     @other_storage_dir = Dir.mktmpdir
