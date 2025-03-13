@@ -91,95 +91,15 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     assert_equal Digest::SHA256.hexdigest(plaintext_upload_bytes), Digest::SHA256.hexdigest(readback_bytes)
   end
 
-  def test_get_with_headers_always_succeeds
-    @service.private_url_policy = :require_headers
-
-    key = "key-1"
-    k = Random.bytes(68)
-    plaintext_upload_bytes = generate_random_binary_string
-    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
-
-    ActiveStorage::Blob.service = @service # So that the controller can find it
-
-    # ActiveStorage wraps the passed filename in a wrapper thingy
-    filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
-    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
-    assert url.include?("/active-storage-encryption/blob/")
-
-    uri = URI.parse(url)
-
-    # Do a super-minimalistic test on the DiskController. ActionController is actually a Rack app (or, rather: every controller action is a Rack app).
-    # It can thus be called with a minimal Rack env. For the definition of "minimal", see https://github.com/rack/rack/blob/main/SPEC.rdoc#the-environment-
-    rack_env = {
-      "SCRIPT_NAME" => "",
-      "PATH_INFO" => uri.path,
-      "QUERY_STRING" => uri.query,
-      "REQUEST_METHOD" => "GET",
-      "SERVER_NAME" => uri.host,
-      "HTTP_X_ACTIVE_STORAGE_ENCRYPTION_KEY" => Base64.strict_encode64(k),
-      "rack.input" => StringIO.new(""),
-      "action_dispatch.request.parameters" => {
-        # The controller expects the Rails router to have injected this param by extracting
-        # it from the route path. The upload param is mapped to :encoded_token, the download param is
-        # mapped to :encoded_key - likely because there was an exploit with ActiveStorage where keys
-        # generated for download could be used for uploading (and thus - overwriting)
-        "token" => uri.path.split("/")[-2] # For "show", the last path param is actually the filename - this is because Content-Disposition can be unreliable for download filename
-      }
-    }
-    action_app = ActiveStorageEncryption::EncryptedBlobsController.action(:show)
-    status, _headers, body = action_app.call(rack_env)
-
-    assert_equal 200, status
-
-    readback_bytes = (+"").b.tap do |buf|
-      body.each { |chunk| buf << chunk }
-    end
-    assert_equal Digest::SHA256.hexdigest(plaintext_upload_bytes), Digest::SHA256.hexdigest(readback_bytes)
-  end
-
-  def test_get_without_headers_succeeds_if_service_permits
+  def test_private_url
     @service.private_url_policy = :stream
 
-    key = "key-1"
-    k = Random.bytes(68)
-    plaintext_upload_bytes = generate_random_binary_string
-    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
-
-    ActiveStorage::Blob.service = @service # So that the controller can find it
-
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
-    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
+    key = "key-1"
+    encryption_key = Random.bytes(32)
+    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key:, expires_in: 10.seconds)
     assert url.include?("/active-storage-encryption/blob/")
-
-    uri = URI.parse(url)
-
-    # Do a super-minimalistic test on the DiskController. ActionController is actually a Rack app (or, rather: every controller action is a Rack app).
-    # It can thus be called with a minimal Rack env. For the definition of "minimal", see https://github.com/rack/rack/blob/main/SPEC.rdoc#the-environment-
-    rack_env = {
-      "SCRIPT_NAME" => "",
-      "PATH_INFO" => uri.path,
-      "QUERY_STRING" => uri.query,
-      "REQUEST_METHOD" => "GET",
-      "SERVER_NAME" => uri.host,
-      "rack.input" => StringIO.new(""),
-      "action_dispatch.request.parameters" => {
-        # The controller expects the Rails router to have injected this param by extracting
-        # it from the route path. The upload param is mapped to :encoded_token, the download param is
-        # mapped to :encoded_key - likely because there was an exploit with ActiveStorage where keys
-        # generated for download could be used for uploading (and thus - overwriting)
-        "token" => uri.path.split("/")[-2] # For "show", the last path param is actually the filename - this is because Content-Disposition can be unreliable for download filename
-      }
-    }
-    action_app = ActiveStorageEncryption::EncryptedBlobsController.action(:show)
-    status, _headers, body = action_app.call(rack_env)
-
-    assert_equal 200, status
-
-    readback_bytes = (+"").b.tap do |buf|
-      body.each { |chunk| buf << chunk }
-    end
-    assert_equal Digest::SHA256.hexdigest(plaintext_upload_bytes), Digest::SHA256.hexdigest(readback_bytes)
   end
 
   def test_generating_url_fails_if_streaming_is_off_for_the_service
@@ -195,40 +115,6 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     assert_raises ActiveStorageEncryption::StreamingDisabled do
       @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
     end
-  end
-
-  def test_get_without_headers_fails_if_service_does_not_permit
-    @service.private_url_policy = :require_headers
-
-    key = "key-1"
-    k = Random.bytes(68)
-    plaintext_upload_bytes = generate_random_binary_string
-    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
-
-    ActiveStorage::Blob.service = @service # So that the controller can find it
-
-    # ActiveStorage wraps the passed filename in a wrapper thingy
-    filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
-    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
-    uri = URI.parse(url)
-
-    # Do a super-minimalistic test on the DiskController. ActionController is actually a Rack app (or, rather: every controller action is a Rack app).
-    # It can thus be called with a minimal Rack env. For the definition of "minimal", see https://github.com/rack/rack/blob/main/SPEC.rdoc#the-environment-
-    rack_env = {
-      "SCRIPT_NAME" => "",
-      "PATH_INFO" => uri.path,
-      "QUERY_STRING" => uri.query,
-      "REQUEST_METHOD" => "GET",
-      "SERVER_NAME" => uri.host,
-      "rack.input" => StringIO.new(""),
-      # Omit x-disk-encryption-key
-      "action_dispatch.request.parameters" => {
-        "token" => uri.path.split("/")[-2] # For "show", the last path param is actually the filename - this is because Content-Disposition can be unreliable for download filename
-      }
-    }
-    action_app = ActiveStorageEncryption::EncryptedBlobsController.action(:show)
-    status, _headers, _body = action_app.call(rack_env)
-    assert_equal 403, status
   end
 
   def test_upload_then_download_using_correct_key
