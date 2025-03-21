@@ -73,7 +73,9 @@ class ActiveStorageEncryption::EncryptedS3ServiceTest < ActiveSupport::TestCase
 
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
-    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
+    url = @service.url(key, blob_byte_size: plaintext_upload_bytes.bytesize,
+      filename: filename_with_sanitization, content_type: "binary/octet-stream",
+      disposition: "inline", encryption_key: k, expires_in: 10.seconds)
     assert url.include?("/active-storage-encryption/blob/")
   end
 
@@ -88,7 +90,8 @@ class ActiveStorageEncryption::EncryptedS3ServiceTest < ActiveSupport::TestCase
 
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
-    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 240.seconds)
+    url = @service.url(key, blob_byte_size: plaintext_upload_bytes.bytesize,
+      filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 240.seconds)
 
     assert url.include?("x-amz-server-side-encryption-customer-algorithm")
     refute url.include?("x-amz-server-side-encryption-customer-key=") # The key should not be in the URL

@@ -119,7 +119,7 @@ class ActiveStorageEncryption::EncryptedMirrorServiceTest < ActiveSupport::TestC
 
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
-    url = @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
+    url = @service.url(key, blob_byte_size: 13, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
     assert url.include?("/active-storage-encryption/blob/")
   end
 

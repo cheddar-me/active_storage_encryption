@@ -3,10 +3,6 @@
 class ActiveStorageEncryption::EncryptedBlobsController < ActionController::Base
   include ActiveStorage::SetCurrent
 
-  # Below similar to ActiveStorage::Streaming but ActionController::Live is meh.
-  include ActionController::DataStreaming
-  include ActionController::Live
-
   class InvalidParams < StandardError
   end
 
@@ -30,24 +26,6 @@ class ActiveStorageEncryption::EncryptedBlobsController < ActionController::Base
       encryption_key: params[:encryption_key])
   rescue InvalidParams, ActiveStorageEncryption::IncorrectEncryptionKey, ActiveSupport::MessageVerifier::InvalidSignature, ActiveStorage::IntegrityError
     head :unprocessable_entity
-  end
-
-  # Streams the decrypted contents of an encrypted blob
-  def show
-    params = read_params_from_token_and_headers_for_get
-    service = lookup_service(params[:service_name])
-    raise InvalidParams, "#{service.name} does not allow private URLs" if service.private_url_policy == :disable
-
-    key = params[:key]
-    encryption_key = params[:encryption_key]
-
-    send_stream(filename: params[:filename], disposition: params[:disposition] || DEFAULT_BLOB_STREAMING_DISPOSITION, type: params[:content_type]) do |stream|
-      service.download(key, encryption_key: encryption_key) do |chunk|
-        stream.write chunk
-      end
-    end
-  rescue InvalidParams, ActiveStorageEncryption::StreamingTokenInvalidOrExpired, ActiveSupport::MessageEncryptor::InvalidMessage, ActiveStorageEncryption::IncorrectEncryptionKey
-    head :forbidden
   end
 
   # Creates a Blob record with a random encryption key and returns the details for PUTing it
@@ -108,35 +86,6 @@ class ActiveStorageEncryption::EncryptedBlobsController < ActionController::Base
       checksum: token_params[:checksum],
       content_type: token_params.fetch(:content_type),
       content_length: token_params.fetch(:content_length)
-    }
-  end
-
-  def read_params_from_token_and_headers_for_get
-    token_str = params.require(:token)
-
-    # The token params for GET / private_url download are encrypted, as they contain the object encryption key.
-    token_params = ActiveStorageEncryption.token_encryptor.decrypt_and_verify(token_str, purpose: :encrypted_get).symbolize_keys
-    encryption_key = Base64.decode64(token_params.fetch(:encryption_key))
-
-    service = lookup_service(token_params.fetch(:service_name))
-
-    # To be more like cloud services: verify presence of headers, if we were asked to (but this is optional)
-    if service.private_url_policy == :require_headers
-      b64_encryption_key = request.headers["x-active-storage-encryption-key"]
-      raise InvalidParams, "x-active-storage-encryption-key header is missing" if b64_encryption_key.blank?
-      raise InvalidParams, "Incorrect encryption key supplied via header" unless Rack::Utils.secure_compare(Base64.decode64(b64_encryption_key), encryption_key)
-    end
-
-    # Verify the SHA of the encryption key
-    encryption_key_b64sha = Digest::SHA256.base64digest(encryption_key)
-    raise InvalidParams, "Incorrect encryption key supplied via token" unless Rack::Utils.secure_compare(encryption_key_b64sha, token_params.fetch(:encryption_key_sha256))
-
-    {
-      key: token_params.fetch(:key),
-      encryption_key: encryption_key,
-      service_name: token_params.fetch(:service_name),
-      disposition: token_params.fetch(:disposition),
-      content_type: token_params.fetch(:content_type)
     }
   end
 

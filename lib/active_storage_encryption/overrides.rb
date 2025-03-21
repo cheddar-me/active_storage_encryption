@@ -138,6 +138,7 @@ module ActiveStorageEncryption
             key, expires_in: expires_in, filename: ActiveStorage::Filename.wrap(filename || self.filename),
             encryption_key: encryption_key,
             content_type: content_type_for_serving, disposition: forced_disposition_for_serving || disposition,
+            blob_byte_size: byte_size,
             **options
           )
         else
