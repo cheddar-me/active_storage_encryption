@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "serve_byte_range"
 
 # This controller is analogous to the ActiveStorage::ProxyController

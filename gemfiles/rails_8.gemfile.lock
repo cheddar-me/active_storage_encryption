@@ -5,6 +5,7 @@ PATH
       activestorage
       block_cipher_kit (>= 0.0.4)
       rails (>= 7.2.2.1)
+      serve_byte_range (~> 1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -229,6 +230,8 @@ GEM
       rubocop-ast (>= 1.31.1, < 2.0)
     ruby-progressbar (1.13.0)
     securerandom (0.4.1)
+    serve_byte_range (1.0.0)
+      rack (>= 1.0)
     sqlite3 (2.6.0-arm64-darwin)
     sqlite3 (2.6.0-x86_64-darwin)
     sqlite3 (2.6.0-x86_64-linux-gnu)
@@ -262,6 +265,7 @@ GEM
 
 PLATFORMS
   arm64-darwin-21
+  arm64-darwin-24
   x86_64-darwin
   x86_64-linux
 
