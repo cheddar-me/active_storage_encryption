@@ -28,6 +28,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", ">= 7.2.2.1"
   spec.add_dependency "block_cipher_kit", ">= 0.0.4"
+  spec.add_dependency "serve_byte_range", "~> 1.0"
   spec.add_dependency "activestorage"
 
   # Testing with cloud services

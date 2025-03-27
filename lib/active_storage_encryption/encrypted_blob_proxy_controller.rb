@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require "serve_byte_range"
 
 # This controller is analogous to the ActiveStorage::ProxyController
 class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::Base
@@ -101,7 +102,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
     # it stays on the service "just as it was" until it gets deleted, so we can reliably use the key
     # of the blob as the ETag.
     blob_etag = key.inspect # Strong ETags must be quoted
-    status, headers, ranges_body = ActiveStorageEncryption::ServeByteRange.serve_ranges(request.env,
+    status, headers, ranges_body = ServeByteRange.serve_ranges(request.env,
       resource_size: blob_byte_size,
       etag: blob_etag, # TODO
       resource_content_type: type,
