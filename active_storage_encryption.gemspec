@@ -22,8 +22,9 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
+  # Do not remove any files from the gemspec - tests are useful because people can read them
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    Dir["{app,config,db,lib,test,gemfiles,bin}/**/*", "MIT-LICENSE", "Appraisals", "Rakefile", "README.md"]
+    `git ls-files -z`.split("\x0")
   end
 
   spec.add_dependency "rails", ">= 7.2.2.1"
