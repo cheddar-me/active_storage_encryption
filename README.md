@@ -113,6 +113,8 @@ Implementation details:
   * `x-amz-server-side-encryption-customer-key`
   * `x-amz-server-side-encryption-customer-key-MD5`
 
+While S3 allows the `x-amz-server-side-encryption-customer-key-MD5` to be added to the signed URL for PUT, the value of that header gets removed from the signature due to the process called "hoisting" - which occurs during the signing of the URL. So your client _may_ override the encryption key you give it forcibly, by replacing the `x-amz-server-side-encryption-customer-key` and `x-amz-server-side-encryption-customer-key-MD5`. This can produce Blobs encrypted with a key you do not have. If you want to exclude the possibility of this, you need to perform an integrity check on your uploads. The integrity check will fail if the encryption key has been overridden in this manner, and you can then destroy the Blob. This problem has been reported to AWS.
+
 ### EncryptedDiskSevice - Filesystem
 
 Can be used instead of the cloud services in development, or on the server if desired. The service will use AES-256-GCM encryption, with a way to switch to a different/more modern encryption scheme in the future.
