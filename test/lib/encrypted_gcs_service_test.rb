@@ -23,7 +23,7 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     @gcs_service = ActiveStorageEncryption::EncryptedGCSService.new(**config)
 
     @encryption_key = ActiveStorage::Blob.generate_random_encryption_key
-    @gcs_key_length_range = (0...ActiveStorage::Service::EncryptedGCSService::GCS_ENCRYPTION_KEY_LENGTH_BYTES) # 32 bytes
+    @gcs_key_length_range = (0...ActiveStorageEncryption::EncryptedGCSService::GCS_ENCRYPTION_KEY_LENGTH_BYTES) # 32 bytes
   end
 
   def test_uploads_downloads_and_then_purges_an_encrypted_blob
