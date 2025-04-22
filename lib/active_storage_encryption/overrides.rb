@@ -99,6 +99,8 @@ module ActiveStorageEncryption
 
       def upload_without_unfurling(io)
         if service_encrypted?
+          raise "Encryption key must be present" unless encryption_key
+
           service.upload(key, io, checksum: checksum, encryption_key: encryption_key, **service_metadata)
         else
           super

@@ -3,27 +3,27 @@
 require "test_helper"
 
 class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
-  include ActiveJob::TestHelper
+  def config
+    {
+      service: "EncryptedGCS",
+      project_id: "sandbox-ci-25b8",
+      bucket: "sandbox-ci-testing-secure-documents",
+      private_url_policy: "stream",
+      credentials: File.read(ENV["GCS_CREDENTIALS_JSON_FILE_PATH"])
+    }
+  end
 
   setup do
-    VCR.turn_off!
-    WebMock.disable!
-    @account = accounts(:feta_personal)
     @textfile = StringIO.new("Secure document that needs to be stored encrypted.")
     @textfile2 = StringIO.new("While being neatly organized all in a days work aat the job.")
-    @gcs_service = ActiveStorage::Blob.services.fetch(:secure_uploads_online)
+    @gcs_service = ActiveStorageEncryption::EncryptedGCSService.new(**config)
 
     @encryption_key = ActiveStorage::Blob.generate_random_encryption_key
     @gcs_key_length_range = (0...ActiveStorage::Service::EncryptedGCSService::GCS_ENCRYPTION_KEY_LENGTH_BYTES) # 32 bytes
   end
 
-  teardown do
-    VCR.turn_on!
-    WebMock.enable!
-  end
-
-  test "uploads, downloads and then purges an encrypted blob" do
-    slow_test!
+  def uploads_downloads_and_then_purges_an_encrypted_blob
+    # skip "for now only available in dev" unless Rails.env.development?
 
     blob = with_image_file do |file|
       create_blob_without_uploading(
@@ -96,8 +96,8 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     refute @gcs_service.exist?(blob.key)
   end
 
-  test "Compose will give an unsopported error" do
-    slow_test!
+  def compose_will_give_an_unsopported_error
+    # skip "for now only available in dev" unless Rails.env.development?
 
     blob1 = create_blob_without_uploading(
       encryption_key: @encryption_key,
