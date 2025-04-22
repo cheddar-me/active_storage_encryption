@@ -14,6 +14,10 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
   end
 
   setup do
+    if ENV["GCS_CREDENTIALS_JSON_FILE_PATH"].blank?
+      skip "You need GCS_CREDENTIALS_JSON_FILE_PATH set in your env and it needs to point to the JSON keyfile for GCS"
+    end
+
     @textfile = StringIO.new("Secure document that needs to be stored encrypted.")
     @textfile2 = StringIO.new("While being neatly organized all in a days work aat the job.")
     @gcs_service = ActiveStorageEncryption::EncryptedGCSService.new(**config)
