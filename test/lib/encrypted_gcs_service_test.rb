@@ -22,7 +22,7 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     @gcs_key_length_range = (0...ActiveStorage::Service::EncryptedGCSService::GCS_ENCRYPTION_KEY_LENGTH_BYTES) # 32 bytes
   end
 
-  def uploads_downloads_and_then_purges_an_encrypted_blob
+  def test_uploads_downloads_and_then_purges_an_encrypted_blob
     # skip "for now only available in dev" unless Rails.env.development?
 
     blob = with_image_file do |file|
@@ -96,7 +96,7 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     refute @gcs_service.exist?(blob.key)
   end
 
-  def compose_will_give_an_unsopported_error
+  def test_compose_will_give_an_unsopported_error
     # skip "for now only available in dev" unless Rails.env.development?
 
     blob1 = create_blob_without_uploading(
