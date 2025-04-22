@@ -235,7 +235,10 @@ class ActiveStorageEncryption::EncryptedS3ServiceTest < ActiveSupport::TestCase
   # Read the objects from something slow, so that threads may switch between one another
   class SnoozyStringIO < StringIO
     def read(n = nil, outbuf = nil)
-      sleep(rand((0.1..0.2)))
+      sleep_from = 0.1
+      sleep_to = 0.2
+      delay_s = rand(sleep_from..sleep_to)
+      sleep(delay_s)
       super
     end
   end
