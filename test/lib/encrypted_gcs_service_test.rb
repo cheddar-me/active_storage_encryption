@@ -42,15 +42,15 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
 
     rng = Random.new(Minitest.seed)
     key = "#{run_id}-streamed-key-#{rng.hex(4)}"
-    k = Random.bytes(68)
+    encryption_key = Random.bytes(68)
     plaintext_upload_bytes = rng.bytes(425)
-    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
+    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key:)
 
     # ActiveStorage wraps the passed filename in a wrapper thingy
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
 
     assert_raises(ActiveStorageEncryption::StreamingDisabled) do
-      @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
+      @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key:, expires_in: 10.seconds)
     end
   end
 
@@ -71,9 +71,9 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
 
     rng = Random.new(Minitest.seed)
     key = "#{run_id}-streamed-key-#{rng.hex(4)}"
-    k = Random.bytes(68)
+    encryption_key = Random.bytes(68)
     plaintext_upload_bytes = rng.bytes(425)
-    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
+    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key:)
 
     # The streaming URL generation uses Rails routing, so it needs
     # ActiveStorage::Current.url_options to be set
@@ -88,7 +88,7 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
     url = @service.url(key, blob_byte_size: plaintext_upload_bytes.bytesize,
       filename: filename_with_sanitization, content_type: "binary/octet-stream",
-      disposition: "inline", encryption_key: k, expires_in: 10.seconds)
+      disposition: "inline", encryption_key:, expires_in: 10.seconds)
     assert url.include?("/active-storage-encryption/blob/")
   end
 
