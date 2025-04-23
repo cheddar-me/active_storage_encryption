@@ -50,7 +50,7 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
 
     assert_raises(ActiveStorageEncryption::StreamingDisabled) do
-      @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key:, expires_in: 10.seconds)
+      @service.url(key, filename: filename_with_sanitization, blob_byte_size: plaintext_upload_bytes.bytesize, content_type: "binary/octet-stream", disposition: "inline", encryption_key:, expires_in: 10.seconds)
     end
   end
 

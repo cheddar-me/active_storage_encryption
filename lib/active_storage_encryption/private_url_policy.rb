@@ -18,7 +18,7 @@ module ActiveStorageEncryption::PrivateUrlPolicy
     @private_url_policy
   end
 
-  def private_url_for_streaming_via_controller(key, expires_in:, filename:, content_type:, disposition:, encryption_key:, blob_byte_size: nil)
+  def private_url_for_streaming_via_controller(key, expires_in:, filename:, content_type:, disposition:, encryption_key:, blob_byte_size:)
     if private_url_policy == :disable
       raise ActiveStorageEncryption::StreamingDisabled, <<~EOS
         Requested a signed GET URL for #{key.inspect} on service #{name}. This service

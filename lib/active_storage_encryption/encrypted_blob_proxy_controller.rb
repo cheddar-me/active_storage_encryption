@@ -105,7 +105,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
     blob_etag = key.inspect # Strong ETags must be quoted
     status, headers, ranges_body = ServeByteRange.serve_ranges(request.env,
       resource_size: blob_byte_size,
-      etag: blob_etag, # TODO
+      etag: blob_etag,
       resource_content_type: type,
       &streaming_proc)
 
