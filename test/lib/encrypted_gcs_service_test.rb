@@ -5,11 +5,10 @@ require "test_helper"
 class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
   def config
     {
-      service: "EncryptedGCS",
       project_id: "sandbox-ci-25b8",
       bucket: "sandbox-ci-testing-secure-documents",
       private_url_policy: "stream",
-      credentials: File.read(ENV["GCS_CREDENTIALS_JSON_FILE_PATH"])
+      credentials: JSON.parse(File.read(ENV["GCS_CREDENTIALS_JSON_FILE_PATH"]))
     }
   end
 
@@ -20,25 +19,153 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
 
     @textfile = StringIO.new("Secure document that needs to be stored encrypted.")
     @textfile2 = StringIO.new("While being neatly organized all in a days work aat the job.")
-    @gcs_service = ActiveStorageEncryption::EncryptedGCSService.new(**config)
+    @service = ActiveStorageEncryption::EncryptedGCSService.new(**config)
+    @service.name = "encrypted_gcs_service"
 
     @encryption_key = ActiveStorage::Blob.generate_random_encryption_key
     @gcs_key_length_range = (0...ActiveStorageEncryption::EncryptedGCSService::GCS_ENCRYPTION_KEY_LENGTH_BYTES) # 32 bytes
   end
 
-  def test_uploads_downloads_and_then_purges_an_encrypted_blob
-    # skip "for now only available in dev" unless Rails.env.development?
+  def run_id
+    # We use a shared GCS bucket, and multiple runs of the test suite may write into it at the same time.
+    # To prevent clobbering and conflicts, assign a "test run ID" and mix it into the object keys. Keep that
+    # value stable across the test suite.
+    @test_suite_run_id ||= SecureRandom.base36(10)
+  end
 
-    blob = with_image_file do |file|
-      create_blob_without_uploading(
-        filename: File.basename(file),
-        content_type: "image/jpeg",
-        encryption_key: @encryption_key,
-        checksum: compute_checksum_in_chunks(file),
-        byte_size: file.size
-      )
+  def test_encrypted_question_method
+    assert @service.encrypted?
+  end
+
+  def test_forbids_private_urls_with_disabled_policy
+    @service.private_url_policy = :disable
+
+    rng = Random.new(Minitest.seed)
+    key = "#{run_id}-streamed-key-#{rng.hex(4)}"
+    k = Random.bytes(68)
+    plaintext_upload_bytes = rng.bytes(425)
+    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
+
+    # ActiveStorage wraps the passed filename in a wrapper thingy
+    filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
+
+    assert_raises(ActiveStorageEncryption::StreamingDisabled) do
+      @service.url(key, filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 10.seconds)
     end
-    url = blob.service_url_for_direct_upload(expires_in: 5.minutes.to_i)
+  end
+
+  def test_exists
+    rng = Random.new(Minitest.seed)
+
+    key = "#{run_id}-encrypted-exists-key-#{rng.hex(4)}"
+    encryption_key = rng.bytes(47) # Make it bigger than required, to ensure the service truncates it
+    plaintext_upload_bytes = rng.bytes(1024)
+
+    assert_nothing_raised { @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key:) }
+    refute @service.exist?(key + "-definitely-not-present")
+    assert @service.exist?(key)
+  end
+
+  def test_generates_private_streaming_urls_with_streaming_policy
+    @service.private_url_policy = :stream
+
+    rng = Random.new(Minitest.seed)
+    key = "#{run_id}-streamed-key-#{rng.hex(4)}"
+    k = Random.bytes(68)
+    plaintext_upload_bytes = rng.bytes(425)
+    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
+
+    # The streaming URL generation uses Rails routing, so it needs
+    # ActiveStorage::Current.url_options to be set
+    # We need to use a hostname for ActiveStorage which is in the Rails authorized hosts.
+    # see https://stackoverflow.com/a/60573259/153886
+    ActiveStorage::Current.url_options = {
+      host: "www.example.com",
+      protocol: "https"
+    }
+
+    # ActiveStorage wraps the passed filename in a wrapper thingy
+    filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
+    url = @service.url(key, blob_byte_size: plaintext_upload_bytes.bytesize,
+      filename: filename_with_sanitization, content_type: "binary/octet-stream",
+      disposition: "inline", encryption_key: k, expires_in: 10.seconds)
+    assert url.include?("/active-storage-encryption/blob/")
+  end
+
+  def test_generates_private_urls_with_require_headers_policy
+    @service.private_url_policy = :require_headers
+
+    rng = Random.new(Minitest.seed)
+    key = "#{run_id}-streamed-key-#{rng.hex(4)}"
+    encryption_key = Random.bytes(68)
+    plaintext_upload_bytes = rng.bytes(425)
+    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key:)
+
+    # ActiveStorage wraps the passed filename in a wrapper thingy
+    filename_with_sanitization = ActiveStorage::Filename.new("temp.bin")
+    url = @service.url(key, blob_byte_size: plaintext_upload_bytes.bytesize,
+      filename: filename_with_sanitization, content_type: "binary/octet-stream",
+      disposition: "inline", encryption_key:, expires_in: 240.seconds)
+
+    query_params_hash = URI.decode_www_form(URI.parse(url).query).to_h
+
+    # Downcased header names for this test since that's what we get back from signing process.
+    expected_headers = ["x-goog-encryption-algorithm", "x-goog-encryption-key", "x-goog-encryption-key-sha256"]
+    signed_headers = query_params_hash["X-Goog-SignedHeaders"].split(";")
+    assert expected_headers.all? { |header| header.in?(signed_headers) }
+
+    uri = URI(url)
+    req = Net::HTTP::Get.new(uri)
+    res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") { |http|
+      http.request(req)
+    }
+    assert_equal "400", res.code
+
+    # TODO make this a headers_for_private_download like in the s3 service
+    download_headers = {
+      "content-type" => "binary/octet-stream",
+      "Content-Disposition" => "inline; filename=\"temp.bin\"; filename*=UTF-8''temp.bin",
+      "x-goog-encryption-algorithm" => "AES256",
+      "x-goog-encryption-key" => Base64.strict_encode64(encryption_key[@gcs_key_length_range]),
+      "x-goog-encryption-key-sha256" => Digest::SHA256.base64digest(encryption_key[@gcs_key_length_range])
+    }
+    download_headers.each_pair { |key, value| req[key] = value }
+
+    res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") { |http|
+      http.request(req)
+    }
+    assert_equal "200", res.code
+    assert_equal plaintext_upload_bytes, res.body
+  end
+
+  def test_basic_gcs_readback
+    rng = Random.new(Minitest.seed)
+
+    key = "#{run_id}-encrypted-key-#{rng.hex(4)}"
+    encryption_key = rng.bytes(47) # Make it bigger than required, to ensure the service truncates it
+    plaintext_upload_bytes = rng.bytes(1024)
+
+    assert_nothing_raised do
+      @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key:)
+    end
+    readback = @service.download(key, encryption_key:)
+    assert_equal readback, plaintext_upload_bytes
+  end
+
+  def test_accepts_direct_upload_with_signature_and_headers
+    rng = Random.new(Minitest.seed)
+
+    key = "#{run_id}-encrypted-key-direct-upload-#{rng.hex(4)}"
+    encryption_key = rng.bytes(47) # Make it bigger than required, to ensure the service truncates it
+    plaintext_upload_bytes = rng.bytes(1024)
+
+    url = @service.url_for_direct_upload(key,
+      encryption_key:,
+      expires_in: 5.minutes.to_i,
+      content_type: "binary/octet-stream",
+      content_length: plaintext_upload_bytes.bytesize,
+      checksum: Digest::MD5.base64digest(plaintext_upload_bytes))
+
     query_params_hash = URI.decode_www_form(URI.parse(url).query).to_h
 
     # Downcased header names for this test since that's what we get back from signing process.
@@ -48,122 +175,28 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
 
     assert_equal "300", query_params_hash["X-Goog-Expires"]
 
-    headers = blob.service_headers_for_direct_upload
     should_be_headers = {
-      "Content-Type" => blob.content_type,
-      "Content-MD5" => blob.checksum,
-      "Content-Disposition" => "inline; filename=\"cheeseboard.jpeg\"; filename*=UTF-8''cheeseboard.jpeg",
+      "Content-Type" => "binary/octet-stream",
+      "Content-MD5" => Digest::MD5.base64digest(plaintext_upload_bytes),
       "x-goog-encryption-algorithm" => "AES256",
-      "x-goog-encryption-key" => Base64.strict_encode64(@encryption_key[@gcs_key_length_range]),
-      "x-goog-encryption-key-sha256" => Digest::SHA256.base64digest(@encryption_key[@gcs_key_length_range])
+      "x-goog-encryption-key" => Base64.strict_encode64(encryption_key[@gcs_key_length_range]),
+      "x-goog-encryption-key-sha256" => Digest::SHA256.base64digest(encryption_key[@gcs_key_length_range])
     }
+
+    headers = @service.headers_for_direct_upload(key,
+      encryption_key:,
+      content_type: "binary/octet-stream",
+      content_length: plaintext_upload_bytes.bytesize,
+      checksum: Digest::MD5.base64digest(plaintext_upload_bytes))
 
     assert_equal should_be_headers.sort, headers.sort
 
-    # Do the upload to our GCS bucket
-    res = with_image_file do |file|
-      # Use plain old Net::HTTP here since currently version 1.4.0 of HTTPX (which is used by Faraday in our env) mangles up the file bytes before upload.
-      # when passing a File object directly.
-      # See https://cheddar-me.slack.com/archives/C01FEPX7PA9/p1739290056637849
-      # https://gitlab.com/os85/httpx/-/issues/338
-      # and https://bugs.ruby-lang.org/issues/21131
-      Net::HTTP.put(URI(url), file.read, headers)
-    end
+    res = Net::HTTP.put(URI(url), plaintext_upload_bytes, headers)
     assert_equal "200", res.code
 
-    assert @gcs_service.exist?(blob.key)
+    assert_equal plaintext_upload_bytes, @service.download(key, encryption_key:)
 
-    download_headers = {
-      "content-type" => blob.content_type,
-      "Range" => "bytes=0-249",
-      "Content-Disposition" => "inline; filename=\"cheeseboard.jpeg\"; filename*=UTF-8''cheeseboard.jpeg",
-      "x-goog-encryption-algorithm" => "AES256",
-      "x-goog-encryption-key" => Base64.strict_encode64(@encryption_key[@gcs_key_length_range]),
-      "x-goog-encryption-key-sha256" => Digest::SHA256.base64digest(@encryption_key[@gcs_key_length_range])
-    }
-
-    download_url = blob.url(expires_in: 5.minute.to_i)
-
-    # Do the download from our GCS bucket
-    res = Net::HTTP.get_response(URI(download_url), download_headers)
-    assert_equal "206", res.code # 206: partial content
-
-    file_binary_content = with_image_file do |file|
-      file.read(250)
-    end
-    assert_equal res.body, file_binary_content
-
-    # Delete the file later via a job
-    blob.purge_later
-    perform_enqueued_jobs
-
-    refute @gcs_service.exist?(blob.key)
-  end
-
-  def test_compose_will_give_an_unsopported_error
-    # skip "for now only available in dev" unless Rails.env.development?
-
-    blob1 = create_blob_without_uploading(
-      encryption_key: @encryption_key,
-      content_type: "text/plain",
-      checksum: compute_checksum_in_chunks(@textfile),
-      byte_size: @textfile.size,
-      filename: "text1.txt",
-      key: "key-1"
-    )
-
-    blob2 = create_blob_without_uploading(
-      encryption_key: @encryption_key,
-      content_type: "text/plain",
-      checksum: compute_checksum_in_chunks(@textfile2),
-      byte_size: @textfile2.size,
-      filename: "text2.txt",
-      key: "key-2"
-    )
-
-    # Not uploading the blobs for now, since we expect an error right away anyway.
-
-    assert_raises NotImplementedError do
-      ActiveStorage::Blob.compose(
-        [blob1, blob2],
-        key: "key-3",
-        filename: ActiveStorage::Filename.new("composed-text.txt"),
-        content_type: "text/plain",
-        service_name: "secure_uploads_online",
-        encryption_key: @encryption_key # all blobs need the same encryption_key to get composed, including the target blob
-      )
-    end
-  end
-
-  private
-
-  def compute_checksum_in_chunks(io)
-    raise ArgumentError, "io must be rewindable" unless io.respond_to?(:rewind)
-
-    OpenSSL::Digest.new("MD5").tap do |checksum|
-      read_buffer = "".b
-      while io.read(5.megabytes, read_buffer)
-        checksum << read_buffer
-      end
-
-      io.rewind
-    end.base64digest
-  end
-
-  def create_blob_without_uploading(encryption_key:, content_type:, filename:, byte_size:, checksum:, key: nil)
-    ActiveStorage::Blob.create_before_direct_upload!(
-      key: key,
-      filename: filename,
-      byte_size: byte_size,
-      checksum: checksum,
-      metadata: {"identified" => true},
-      content_type: content_type,
-      encryption_key: encryption_key,
-      service_name: "secure_uploads_online" # this will use the actual Google cloud service.
-    )
-  end
-
-  def with_image_file(&blk)
-    File.open("./test/fixtures/files/cheeseboard.jpeg", "rb", &blk)
+    @service.delete(key)
+    refute @service.exist?(key)
   end
 end

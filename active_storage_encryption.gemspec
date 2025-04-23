@@ -43,4 +43,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "appraisal"
   spec.add_development_dependency "magic_frozen_string_literal"
   spec.add_development_dependency "rake"
+  spec.add_development_dependency "pry"
 end

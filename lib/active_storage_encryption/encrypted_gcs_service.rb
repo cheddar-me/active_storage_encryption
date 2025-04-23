@@ -11,6 +11,12 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
 
   def public? = false
 
+  def service_name
+    # ActiveStorage::Service::DiskService => Disk
+    # Overridden because in Rails 8 this is "self.class.name.split("::").third.remove("Service")"
+    self.class.name.split("::").last.remove("Service")
+  end
+
   def upload(key, io, encryption_key: nil, checksum: nil, content_type: nil, disposition: nil, filename: nil, custom_metadata: {})
     instrument :upload, key: key, checksum: checksum do
       # GCS's signed URLs don't include params such as response-content-type response-content_disposition
