@@ -54,7 +54,7 @@ module ActiveStorageEncryption
               content_type ||= blobs.pluck(:content_type).compact.first
 
               new(key: key, filename: filename, content_type: content_type, metadata: metadata, byte_size: blobs.sum(&:byte_size), service_name:, encryption_key:).tap do |combined_blob|
-                combined_blob.compose(blobs.pluck(:key))
+                combined_blob.compose(blobs.pluck(:key), source_encryption_keys: blobs.pluck(:encryption_key))
                 combined_blob.save!
               end
             end
@@ -141,7 +141,7 @@ module ActiveStorageEncryption
           self.composed = true
           service.compose(keys, key, encryption_key: encryption_key, source_encryption_keys: source_encryption_keys, **service_metadata)
         else
-          super
+          super(keys)
         end
       end
 

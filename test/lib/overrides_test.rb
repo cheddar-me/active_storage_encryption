@@ -237,38 +237,105 @@ class ActiveStorageEncryption::OverridesTest < ActiveSupport::TestCase
     assert_equal unencrypted_blob_hash.sort, unencrypted_blob.serializable_hash.sort
   end
 
-  def test_compose_works_with_encryption
+  def test_instance_compose_works_with_encryption_and_without
     rng = Random.new(Minitest.seed)
 
     encrypted_blob_1 = with_upload_file do |file|
       ActiveStorage::Blob.create_and_upload!(
-        io: file,
-        filename: "test_upload",
-        metadata: {"identified" => true},
+        io: file, filename: "test_upload", metadata: {"identified" => true},
         service_name: "encrypted_disk"
       )
     end
     encrypted_blob_2 = with_upload_file do |file|
       ActiveStorage::Blob.create_and_upload!(
-        io: file,
-        filename: "test_upload",
-        metadata: {"identified" => true},
+        io: file, filename: "test_upload", metadata: {"identified" => true},
         service_name: "encrypted_disk"
       )
     end
-    new_blob = ActiveStorage::Blob.create_before_direct_upload!(
-      key: "new_blob_key",
-      filename: "combined_test_upload",
-      metadata: {"identified" => true},
-      content_type: "plain/text",
-      checksum: "okok", # TODO how to know this in advance?
+    new_encrypted_blob = ActiveStorage::Blob.create_before_direct_upload!(
+      key: "new_blob_key", filename: "combined_test_upload",
+      metadata: {"identified" => true}, content_type: "plain/text",
+      checksum: "okok",
       byte_size: encrypted_blob_1.byte_size + encrypted_blob_2.byte_size,
       encryption_key: rng.bytes(68),
       service_name: "encrypted_disk"
     )
-    new_blob.compose([encrypted_blob_1.key, encrypted_blob_2.key], source_encryption_keys: [encrypted_blob_1.encryption_key, encrypted_blob_2.encryption_key])
+    new_encrypted_blob.compose([encrypted_blob_1.key, encrypted_blob_2.key], source_encryption_keys: [encrypted_blob_1.encryption_key, encrypted_blob_2.encryption_key])
     with_upload_file do |file|
-      assert_equal file.read * 2, new_blob.download
+      assert_equal file.read * 2, new_encrypted_blob.download
+    end
+
+    unencrypted_blob_1 = with_upload_file do |file|
+      ActiveStorage::Blob.create_and_upload!(
+        io: file, filename: "test_upload", metadata: {"identified" => true},
+        service_name: "test"
+      )
+    end
+    unencrypted_blob_2 = with_upload_file do |file|
+      ActiveStorage::Blob.create_and_upload!(
+        io: file, filename: "test_upload", metadata: {"identified" => true},
+        service_name: "test"
+      )
+    end
+    new_unencrypted_blob = ActiveStorage::Blob.create_before_direct_upload!(
+      key: "new_blob_key_2", filename: "combined_test_upload",
+      metadata: {"identified" => true}, content_type: "plain/text",
+      checksum: "okok",
+      byte_size: unencrypted_blob_1.byte_size + unencrypted_blob_2.byte_size
+    )
+    new_unencrypted_blob.compose([unencrypted_blob_1.key, unencrypted_blob_2.key])
+    with_upload_file do |file|
+      assert_equal file.read * 2, new_unencrypted_blob.download
+    end
+  end
+
+  def test_class_compose_works_with_and_without_encryption
+    rng = Random.new(Minitest.seed)
+
+    encrypted_blob_1 = with_upload_file do |file|
+      ActiveStorage::Blob.create_and_upload!(
+        io: file, filename: "test_upload", metadata: {"identified" => true},
+        service_name: "encrypted_disk"
+      )
+    end
+    encrypted_blob_2 = with_upload_file do |file|
+      ActiveStorage::Blob.create_and_upload!(
+        io: file, filename: "test_upload", metadata: {"identified" => true},
+        service_name: "encrypted_disk"
+      )
+    end
+    new_enc_blob = ActiveStorage::Blob.compose(
+      [encrypted_blob_1, encrypted_blob_2],
+      content_type: "text/plain",
+      filename: "composed-blob",
+      metadata: {"identified" => true},
+      key: "new_enc_blob",
+      service_name: "encrypted_disk",
+      encryption_key: rng.bytes(68)
+    )
+    with_upload_file do |file|
+      assert_equal file.read * 2, new_enc_blob.download
+    end
+
+    unencrypted_blob_1 = with_upload_file do |file|
+      ActiveStorage::Blob.create_and_upload!(
+        io: file, filename: "test_upload", metadata: {"identified" => true},
+        service_name: "test"
+      )
+    end
+    unencrypted_blob_2 = with_upload_file do |file|
+      ActiveStorage::Blob.create_and_upload!(
+        io: file, filename: "test_upload", metadata: {"identified" => true},
+        service_name: "test"
+      )
+    end
+    new_unencrypted_blob = ActiveStorage::Blob.compose(
+      [unencrypted_blob_1, unencrypted_blob_2],
+      key: "new_unencblob_key_2", filename: "combined_test_upload_2",
+      metadata: {"identified" => true}, service_name: "test"
+    )
+    with_upload_file do |file|
+      assert_equal file.read * 2, new_unencrypted_blob.download
     end
   end
 
