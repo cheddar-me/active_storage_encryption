@@ -70,7 +70,8 @@ module ActiveStorageEncryption
 
       def service_url_for_direct_upload(expires_in: ActiveStorage.service_urls_expire_in)
         if service_encrypted?
-          raise "No encryption key present" unless encryption_key
+          raise "Encryption key must be present" unless encryption_key
+
           service.url_for_direct_upload(key, expires_in: expires_in, content_type: content_type, content_length: byte_size, checksum: checksum, custom_metadata: custom_metadata, encryption_key: encryption_key)
         else
           super
@@ -78,6 +79,8 @@ module ActiveStorageEncryption
       end
 
       def open(tmpdir: nil, &block)
+        raise "Encryption key must be present" if !encryption_key && service_encrypted?
+
         service.open(
           key,
           encryption_key: encryption_key,
@@ -91,6 +94,8 @@ module ActiveStorageEncryption
 
       def service_headers_for_direct_upload
         if service_encrypted?
+          raise "Encryption key must be present" unless encryption_key
+
           service.headers_for_direct_upload(key, filename: filename, content_type: content_type, content_length: byte_size, checksum: checksum, custom_metadata: custom_metadata, encryption_key: encryption_key)
         else
           super
@@ -111,6 +116,8 @@ module ActiveStorageEncryption
       # That'll use a lot of RAM for very large files. If a block is given, then the download is streamed and yielded in chunks.
       def download(&block)
         if service_encrypted?
+          raise "Encryption key must be present" unless encryption_key
+
           service.download(key, encryption_key: encryption_key, &block)
         else
           super
@@ -119,16 +126,20 @@ module ActiveStorageEncryption
 
       def download_chunk(range)
         if service_encrypted?
+          raise "Encryption key must be present" unless encryption_key
+
           service.download_chunk(key, range, encryption_key: encryption_key)
         else
           super
         end
       end
 
-      def compose(keys)
+      def compose(keys, source_encryption_keys: [])
         if service_encrypted?
+          raise "Encryption key must be present" unless encryption_key
+
           self.composed = true
-          service.compose(keys, key, encryption_key: encryption_key, **service_metadata)
+          service.compose(keys, key, encryption_key: encryption_key, source_encryption_keys: source_encryption_keys, **service_metadata)
         else
           super
         end
@@ -136,6 +147,8 @@ module ActiveStorageEncryption
 
       def url(expires_in: ActiveStorage.service_urls_expire_in, disposition: :inline, filename: nil, **options)
         if service_encrypted?
+          raise "No encryption key present" unless encryption_key
+
           service.url(
             key, expires_in: expires_in, filename: ActiveStorage::Filename.wrap(filename || self.filename),
             encryption_key: encryption_key,
@@ -180,6 +193,8 @@ module ActiveStorageEncryption
 
     module DownloaderInstanceMethods
       def open(key, encryption_key: nil, checksum: nil, verify: true, name: "ActiveStorage-", tmpdir: nil, &blk)
+        raise "Encryption key must be present" if !encryption_key && service.respond_to?(:encrypted?) && service.encrypted?
+
         open_tempfile(name, tmpdir) do |file|
           download(key, file, encryption_key: encryption_key)
           verify_integrity_of(file, checksum: checksum) if verify
@@ -191,6 +206,8 @@ module ActiveStorageEncryption
 
       def download(key, file, encryption_key: nil)
         if service.respond_to?(:encrypted?) && service.encrypted?
+          raise "Encryption key must be present" unless encryption_key
+
           file.binmode
           service.download(key, encryption_key: encryption_key) { |chunk| file.write(chunk) }
           file.flush
