@@ -7,8 +7,7 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     {
       project_id: "sandbox-ci-25b8",
       bucket: "sandbox-ci-testing-secure-documents",
-      private_url_policy: "stream",
-      credentials: JSON.parse(File.read(ENV["GOOGLE_APPLICATION_CREDENTIALS"]))
+      private_url_policy: "stream"
     }
   end
 
