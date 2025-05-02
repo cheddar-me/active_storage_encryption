@@ -140,7 +140,7 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
   end
 
   def public_url(key, filename:, encryption_key:, content_type: nil, disposition: :inline, **)
-    raise "Public urls are disabled for this service"
+    raise "Public URL's are disabled for this service"
   end
 
   def gcs_encryption_key_headers(key)

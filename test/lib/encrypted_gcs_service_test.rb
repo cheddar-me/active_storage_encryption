@@ -8,13 +8,13 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
       project_id: "sandbox-ci-25b8",
       bucket: "sandbox-ci-testing-secure-documents",
       private_url_policy: "stream",
-      credentials: JSON.parse(File.read(ENV["GCS_CREDENTIALS_JSON_FILE_PATH"]))
+      credentials: JSON.parse(File.read(ENV["GOOGLE_APPLICATION_CREDENTIALS"]))
     }
   end
 
   setup do
-    if ENV["GCS_CREDENTIALS_JSON_FILE_PATH"].blank?
-      skip "You need GCS_CREDENTIALS_JSON_FILE_PATH set in your env and it needs to point to the JSON keyfile for GCS"
+    if ENV["GOOGLE_APPLICATION_CREDENTIALS"].blank?
+      skip "You need GOOGLE_APPLICATION_CREDENTIALS set in your env and it needs to point to the JSON keyfile for GCS"
     end
 
     @textfile = StringIO.new("Secure document that needs to be stored encrypted.")
