@@ -19,3 +19,6 @@ encrypted_mirror:
     - encrypted_disk
   mirrors:
     - test
+
+encrypted_gcs_service:
+  service: EncryptedGCS
