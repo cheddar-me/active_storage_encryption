@@ -246,12 +246,11 @@ The value in that column is what's called "key material". It is highly sensitive
 
 ## Migrating your blobs into an encrypted store
 
-We provide a method on the `Blob` for this - called `migrate_to_encrypted_service(service)`. The method will:
+We do not provide a built-in method for this, but you can easily implement this yourself:
 
 * Generate an `encryption_key` for the blob in question
-* Stream the plaintext data into a copy on the encrypted service, applying encryption
+* Stream the plaintext data into a copy on the encrypted service, applying encryption. The way to do this depends on the encrypted service used.
 * Transactionally store the encryption key on the `Blob` _and_ switch its `service` to the encrypted service.
-
 
 ## License
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
