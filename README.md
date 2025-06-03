@@ -8,7 +8,7 @@ Install the gem and run the migration.
 
 ```shell
 bundle add active_storage_encryption
-bin/rails active_storage_encryption:install
+bin/rails g active_storage_encryption:install
 bin/rails db:migrate
 ```
 
