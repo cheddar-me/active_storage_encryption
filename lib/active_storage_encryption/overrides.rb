@@ -15,6 +15,7 @@ module ActiveStorageEncryption
             ENCRYPTION_KEY_LENGTH_BYTES = 16 + 32 # So we have enough
 
             def service_encrypted?(service_name)
+              service_name ||= Rails.application.config.active_storage.service
               return false unless service_name
 
               service = ActiveStorage::Blob.services.fetch(service_name) do
