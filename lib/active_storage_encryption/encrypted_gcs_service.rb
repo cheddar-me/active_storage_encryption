@@ -4,6 +4,8 @@ require "active_storage/service/gcs_service"
 require "google/cloud/storage/service"
 
 class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCSService
+  autoload :ResumableGCSUpload, __dir__ + "/encrypted_gcs_service/resumable_upload.rb"
+
   include ActiveStorageEncryption::PrivateUrlPolicy
   GCS_ENCRYPTION_KEY_LENGTH_BYTES = 32 # google wants to get a 32 byte key
 
@@ -70,6 +72,26 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
       headers["Cache-Control"] = @config[:cache_control]
     end
     headers
+  end
+
+  def compose(source_keys, destination_key, source_encryption_keys:, encryption_key:, filename: nil, content_type: nil, disposition: nil, custom_metadata: {})
+    if source_keys.length != source_encryption_keys.length
+      raise ArgumentError, "With #{source_keys.length} keys to compose there should be exactly as many source_encryption_keys, but got #{source_encryption_keys.length}"
+    end
+    content_disposition = content_disposition_with(type: disposition, filename: filename) if disposition && filename
+    # upload_options_for_compose = upload_options.merge(sse_options(encryption_key))
+    file_for_destination = bucket.file(destination_key)
+    destination_encryption_key = derive_service_encryption_key(source_encryption_key)
+    # ...content_type: "binary/octet-stream", **signed_url_options
+    uploader = ResumableUpload.new(file_for_destination, encryption_key: destination_encryption_key)
+    uploader.stream do |destination|
+      destination.binmode
+      source_keys.zip(source_encryption_keys).each do |(source_key, source_encryption_key)|
+        stream(source_key, encryption_key: derive_service_encryption_key(source_encryption_key)) do |chunk|
+          destination.write(chunk)
+        end
+      end
+    end
   end
 
   def download(key, encryption_key: nil, &block)

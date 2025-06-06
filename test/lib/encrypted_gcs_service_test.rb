@@ -151,6 +151,25 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     assert_equal readback, plaintext_upload_bytes
   end
 
+  def test_compose
+    rng = Random.new(Minitest.seed)
+
+    parts = 7.times.map do
+      {key: "#{run_id}-part-#{rng.hex(4)}", encryption_key: rng.bytes(32), bytes: rng.bytes(1024)}
+    end
+
+    parts.each do |part|
+      @service.upload(part[:key], StringIO.new(part[:bytes]), encryption_key: part[:encryption_key])
+    end
+
+    source_keys = parts.map { |part| part[:key] }
+    source_encryption_keys = parts.map { |part| part[:encryption_key] }
+    destination_key = "#{run_id}-comp-#{rng.hex(4)}"
+    encryption_key = rng.bytes(32)
+
+    @service.compose(source_keys, destination_key, source_encryption_keys:, encryption_key:)
+  end
+
   def test_accepts_direct_upload_with_signature_and_headers
     rng = Random.new(Minitest.seed)
 
