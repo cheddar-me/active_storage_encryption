@@ -136,17 +136,25 @@ class ActiveStorageEncryption::EncryptedGCSService::ResumableUpload
   end
 
   # @param [Google::Cloud::Storage::File]
-  def initialize(file, content_type: "binary/octet-stream", **signed_url_options)
+  def initialize(file, content_type: "binary/octet-stream", headers: {}, **signed_url_options)
     @file = file
     @content_type = content_type
-    @signed_url_options = url_issuer_and_signer.merge(signed_url_options)
+    @signed_url_options = signed_url_options # url_issuer_and_signer.merge(signed_url_options)
+    @resumable_upload_start_headers = headers.to_h
   end
 
   # @yields writable[IO] an IO-ish object that responds to `#write`
   def stream(&blk)
-    session_start_url = @file.signed_url(method: "POST", content_type: @content_type, headers: {"x-goog-resumable": "start"}, **@signed_url_options)
+    headers = {"x-goog-resumable": "start"}.merge(@resumable_upload_start_headers)
+    session_start_url = @file.signed_url(method: "POST", content_type: @content_type, headers: headers, **@signed_url_options)
     response = Net::HTTP.post(URI(session_start_url), "", {"content-type" => @content_type, "x-goog-resumable" => "start"})
-    raise "Expected HTTP status code to be 201, got #{response.code}" unless response.code.to_i == 201
+    unless response.code.to_i == 201
+      raise <<~MSG
+        Resumable upload start POST responded with #{response.code} instead of 201.
+        Body:
+        #{response.body}
+      MSG
+    end
 
     resumable_upload_session_put_url = response["location"]
     writable = RangedPutIO.new(resumable_upload_session_put_url, content_type: @content_type, chunk_size: CHUNK_SIZE_FOR_UPLOADS)

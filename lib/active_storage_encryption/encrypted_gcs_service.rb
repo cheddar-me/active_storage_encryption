@@ -59,13 +59,15 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
     end
   end
 
-  def headers_for_direct_upload(key, checksum:, encryption_key:, filename: nil, disposition: nil, content_type: nil, custom_metadata: {}, **)
+  def headers_for_direct_upload(key, checksum: nil, encryption_key:, filename: nil, disposition: nil, content_type: "binary/octet-stream", custom_metadata: {}, **)
     headers = {
       "Content-Type" => content_type,
-      "Content-MD5" => checksum, # Not strictly required, but it ensures the file bytes we upload match what we want. This way google will error when we upload garbage.
       **gcs_encryption_key_headers(derive_service_encryption_key(encryption_key)),
       **custom_metadata_headers(custom_metadata)
     }
+    # Content-MD5 is very useful but it is not always possible to provide ahead of time.
+    # For example, when doing a resumable upload it will not be available before starting.
+    headers["Content-MD5"] = checksum if checksum
     headers["Content-Disposition"] = content_disposition_with(type: disposition, filename: filename) if filename
 
     if @config[:cache_control].present?
@@ -79,11 +81,22 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
       raise ArgumentError, "With #{source_keys.length} keys to compose there should be exactly as many source_encryption_keys, but got #{source_encryption_keys.length}"
     end
     content_disposition = content_disposition_with(type: disposition, filename: filename) if disposition && filename
-    # upload_options_for_compose = upload_options.merge(sse_options(encryption_key))
     destination_encryption_key = derive_service_encryption_key(encryption_key)
-    file_for_destination = file_for(destination_key, encryption_key: destination_encryption_key)
+    file_for_destination = file_for(destination_key)
     # ...content_type: "binary/octet-stream", **signed_url_options
-    uploader = ResumableUpload.new(file_for_destination)
+
+    # As per https://cloud.google.com/storage/docs/xml-api/post-object-resumable the encryption key is
+    # provided in the headers for the resumable upload start, in the POST request
+    headers = headers_for_direct_upload(destination_encryption_key, encryption_key: destination_encryption_key)
+
+    content_type ||= "binary/octet-stream"
+    filename ||= ActiveStorage::Filename.new(destination_key)
+    disposition ||= "inline"
+    expires_in = 30.seconds.to_i
+
+    signed_url_params = signed_url_parameters = signed_url_parameters(disposition, filename, content_type, destination_encryption_key, expires_in)
+    uploader = ResumableUpload.new(file_for_destination, headers: headers, **signed_url_params)
+
     uploader.stream do |destination|
       destination.binmode
       source_keys.zip(source_encryption_keys).each do |(source_key, source_encryption_key)|
@@ -133,23 +146,27 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
 
   private
 
+  def signed_url_parameters(disposition, filename, content_type, encryption_key, expires_in)
+    args = {
+      expires: expires_in,
+      query: {
+        "response-content-disposition" => content_disposition_with(type: disposition, filename: filename),
+        "response-content-type" => content_type
+      },
+      headers: gcs_encryption_key_headers(derive_service_encryption_key(encryption_key))
+    }
+
+    if @config[:iam]
+      args[:issuer] = issuer
+      args[:signer] = signer
+    end
+    args
+  end
+
   def private_url(key, expires_in:, filename:, content_type:, disposition:, encryption_key:, **remaining_options_for_streaming_url)
     if private_url_policy == :require_headers
-      args = {
-        expires: expires_in,
-        query: {
-          "response-content-disposition" => content_disposition_with(type: disposition, filename: filename),
-          "response-content-type" => content_type
-        },
-        headers: gcs_encryption_key_headers(derive_service_encryption_key(encryption_key))
-      }
-
-      if @config[:iam]
-        args[:issuer] = issuer
-        args[:signer] = signer
-      end
-
-      file_for(key).signed_url(**args, version: :v4)
+      signed_url_parameters = signed_url_parameters(disposition, filename, content_type, encryption_key, expires_in)
+      file_for(key).signed_url(**signed_url_parameters, version: :v4)
     else
       private_url_for_streaming_via_controller(key, expires_in:, filename:, content_type:, disposition:, encryption_key:, **remaining_options_for_streaming_url)
     end
