@@ -21,6 +21,9 @@ class ActiveStorageEncryption::EncryptedGCSService::ResumableUpload
   # need to hold a buffer of that size, let's just assume that the 5MB that AWS uses is a good number for part size.
   CHUNK_SIZE_FOR_UPLOADS = 5 * 1024 * 1024
 
+  class UploadStartRefused < StandardError
+  end
+
   # When doing GCP uploads the chunks need to be sized to 256KB increments, and the output
   # that we generate is not guaranteed to be chopped up this way. Also the upload for the last
   # chunk is done slightly different than the preceding chunks. It is convenient to have a
@@ -149,7 +152,7 @@ class ActiveStorageEncryption::EncryptedGCSService::ResumableUpload
     session_start_url = @file.signed_url(method: "POST", content_type: @content_type, headers: headers, **@signed_url_options)
     response = Net::HTTP.post(URI(session_start_url), "", {"content-type" => @content_type, "x-goog-resumable" => "start"})
     unless response.code.to_i == 201
-      raise <<~MSG
+      raise UploadStartRefused, <<~MSG
         Resumable upload start POST responded with #{response.code} instead of 201.
         Body:
         #{response.body}
