@@ -4,7 +4,7 @@ require "active_storage/service/gcs_service"
 require "google/cloud/storage/service"
 
 class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCSService
-  autoload :ResumableGCSUpload, __dir__ + "/encrypted_gcs_service/resumable_upload.rb"
+  autoload :ResumableUpload, __dir__ + "/encrypted_gcs_service/resumable_upload.rb"
 
   include ActiveStorageEncryption::PrivateUrlPolicy
   GCS_ENCRYPTION_KEY_LENGTH_BYTES = 32 # google wants to get a 32 byte key
@@ -80,10 +80,10 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
     end
     content_disposition = content_disposition_with(type: disposition, filename: filename) if disposition && filename
     # upload_options_for_compose = upload_options.merge(sse_options(encryption_key))
-    file_for_destination = bucket.file(destination_key)
-    destination_encryption_key = derive_service_encryption_key(source_encryption_key)
+    destination_encryption_key = derive_service_encryption_key(encryption_key)
+    file_for_destination = file_for(destination_key, encryption_key: destination_encryption_key)
     # ...content_type: "binary/octet-stream", **signed_url_options
-    uploader = ResumableUpload.new(file_for_destination, encryption_key: destination_encryption_key)
+    uploader = ResumableUpload.new(file_for_destination)
     uploader.stream do |destination|
       destination.binmode
       source_keys.zip(source_encryption_keys).each do |(source_key, source_encryption_key)|
@@ -129,12 +129,6 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
       yield file.download(range: offset..(offset + chunk_size - 1), encryption_key: derive_service_encryption_key(encryption_key)).string
       offset += chunk_size
     end
-  end
-
-  def compose(source_keys, destination_key, encryption_key:, filename: nil, content_type: nil, disposition: nil, custom_metadata: {})
-    # Because we will always have a different encryption_key on a blob when created and google requires us to have the same encryption_keys on all source blobs
-    # we need to work this out a bit more. For now we don't need this and thus won't support it in this service.
-    raise NotImplementedError, "Currently composing files is not supported"
   end
 
   private
