@@ -1,6 +1,12 @@
 require "test_helper"
 
 class ActiveStorageEncryptionResumableGCSUploadTest < ActiveSupport::TestCase
+  setup do
+    if ENV["GOOGLE_APPLICATION_CREDENTIALS"].blank?
+      skip "You need GOOGLE_APPLICATION_CREDENTIALS set in your env and it needs to point to the JSON keyfile for GCS"
+    end
+  end
+
   def bucket
     @bucket ||= begin
       config = {
