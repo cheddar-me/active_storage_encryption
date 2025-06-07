@@ -12,3 +12,5 @@
 # The Bundler lockfile should not be cached because its contents is arch-dependent
 Gemfile.lock
 .DS_Store
+gcs_creds.json
+
