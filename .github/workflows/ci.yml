@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Note: Appraisals for Rails 7 and Rails 8 differ in minimum Ruby version: 3.1.0+ vs 3.2.2+
       # So the version of Ruby to use here is the version that is able to run all Appraisals
@@ -34,7 +34,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y curl libjemalloc2 sqlite3
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -59,7 +59,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y curl libjemalloc2 sqlite3
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
