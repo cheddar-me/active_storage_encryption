@@ -97,6 +97,18 @@ class ActiveStorageEncryption::EncryptedMirrorServiceTest < ActiveSupport::TestC
     registry&.delete(@service.name.to_sym)
   end
 
+  def test_upload_accepts_the_metadata_options_blobs_pass
+    key = "key-1"
+    k = Random.bytes(68)
+    plaintext_upload_bytes = Random.bytes(42)
+
+    assert_nothing_raised do
+      @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k,
+        content_type: "image/png", disposition: :inline, filename: ActiveStorage::Filename.new("a.png"), custom_metadata: {})
+    end
+    assert @service1.exist?(key)
+  end
+
   def test_generates_direct_upload_url_for_primary
     key = "key-1"
     k = Random.bytes(68)

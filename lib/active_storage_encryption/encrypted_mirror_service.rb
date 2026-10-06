@@ -39,7 +39,7 @@ class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::
     else
       primary.upload(key, io, checksum: checksum, **options)
     end
-    mirror_later_with_encryption(key, checksum: checksum, encryption_key: encryption_key, **options)
+    mirror_later_with_encryption(key, checksum: checksum, encryption_key: encryption_key)
   end
 
   def mirror_with_encryption(key, checksum:, encryption_key:)
