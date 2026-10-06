@@ -81,6 +81,22 @@ class ActiveStorageEncryption::EncryptedMirrorServiceTest < ActiveSupport::TestC
     assert_equal plaintext_upload_bytes, @service3.download(key, encryption_key: k)
   end
 
+  def test_mirrors_when_the_mirror_is_a_named_service_other_than_the_default
+    ActiveStorage::Blob.service = ActiveStorage::Service::DiskService.new(root: @storage_dir + "/default-plain")
+    registry = ActiveStorage::Blob.services.instance_variable_get(:@services)
+    registry[@service.name.to_sym] = @service
+
+    key = "key-1"
+    k = Random.bytes(68)
+    plaintext_upload_bytes = Random.bytes(42)
+    @service.upload(key, StringIO.new(plaintext_upload_bytes), encryption_key: k)
+    perform_enqueued_jobs
+
+    assert_equal plaintext_upload_bytes, @service3.download(key, encryption_key: k)
+  ensure
+    registry&.delete(@service.name.to_sym)
+  end
+
   def test_generates_direct_upload_url_for_primary
     key = "key-1"
     k = Random.bytes(68)

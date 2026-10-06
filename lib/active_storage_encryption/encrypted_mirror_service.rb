@@ -71,6 +71,8 @@ class ActiveStorageEncryption::EncryptedMirrorService < ActiveStorage::Service::
       },
       purpose: :mirror
     )
-    MirrorJobWithEncryption.perform_later(key, checksum: checksum, service_name:, encryption_key_token:)
+    # The configured name, not #service_name (the class-derived "EncryptedMirror"): the job
+    # looks the service up by it, and a miss falls back to the default service.
+    MirrorJobWithEncryption.perform_later(key, checksum: checksum, service_name: name, encryption_key_token:)
   end
 end
