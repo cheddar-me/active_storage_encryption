@@ -36,6 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "aws-sdk-s3"
   spec.add_development_dependency "net-http"
   spec.add_development_dependency "google-cloud-storage"
+  spec.add_development_dependency "gcs_put", "~> 0.2"
 
   # Code formatting, linting and testing
   spec.add_development_dependency "sqlite3"
