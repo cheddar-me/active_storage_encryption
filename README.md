@@ -113,7 +113,7 @@ Implementation details:
   * `x-amz-server-side-encryption-customer-key`
   * `x-amz-server-side-encryption-customer-key-MD5`
 
-While S3 allows the `x-amz-server-side-encryption-customer-key-MD5` to be added to the signed URL for PUT, the value of that header gets removed from the signature due to the process called "hoisting" - which occurs during the signing of the URL. So your client _may_ override the encryption key you give it forcibly, by replacing the `x-amz-server-side-encryption-customer-key` and `x-amz-server-side-encryption-customer-key-MD5`. This can produce Blobs encrypted with a key you do not have. If you want to exclude the possibility of this, you need to perform an integrity check on your uploads. The integrity check will fail if the encryption key has been overridden in this manner, and you can then destroy the Blob. This problem has been reported to AWS.
+Presigned URLs (for both `PUT` and `GET`) are signed with the SSE-C headers as signed headers instead of query string parameters - the stock `S3Service` lets the AWS SDK "hoist" them into the query string, which would remove the key MD5 from the signature. With the headers signed, the client has to send exactly the `x-amz-server-side-encryption-customer-*` headers returned by `headers_for_direct_upload` and `headers_for_private_download`, and can't upload with an encryption key of its own.
 
 #### DigitalOcean Spaces
 
@@ -131,7 +131,7 @@ encrypted_spaces:
   bucket: my-bucket
 ```
 
-Spaces ignores the SSE-C parameters in the query string of a presigned URL and only accepts them as headers. The headers returned by `headers_for_direct_upload` and `headers_for_private_download` include all three of them, so make sure your client sends all of them - and allow all three in your CORS configuration.
+Spaces ignores the SSE-C parameters in the query string of a presigned URL and only accepts them as headers - which is what the signed headers described above give you. Allow all three headers in your CORS configuration.
 
 ### EncryptedDiskSevice - Filesystem
 

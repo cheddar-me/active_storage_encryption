@@ -83,15 +83,15 @@ module S3CompatibleServiceTests
     url = @service.url(key, blob_byte_size: plaintext_upload_bytes.bytesize,
       filename: filename_with_sanitization, content_type: "binary/octet-stream", disposition: "inline", encryption_key: k, expires_in: 240.seconds)
 
-    assert url.include?("x-amz-server-side-encryption-customer-algorithm")
     refute url.include?("x-amz-server-side-encryption-customer-key=") # The key should not be in the URL
+    assert_sse_headers_signed url
 
     uri = URI(url)
     req = Net::HTTP::Get.new(uri)
     res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") { |http|
       http.request(req)
     }
-    assert_equal "400", res.code
+    refute_equal "200", res.code
 
     headers = @service.headers_for_private_download(key, encryption_key: k)
     headers.each_pair do |h, v|
@@ -183,7 +183,7 @@ module S3CompatibleServiceTests
       checksum: Digest::MD5.base64digest(plaintext_upload_bytes))
 
     refute url.include?("x-amz-server-side-encryption-customer-key=") # The key should not be in the URL
-    assert url.include?("x-amz-server-side-encryption-customer-key-md5=") # The checksum must be in the URL
+    assert_sse_headers_signed url
 
     res = Net::HTTP.put(URI(url), plaintext_upload_bytes, headers)
     assert_equal "200", res.code
@@ -192,8 +192,6 @@ module S3CompatibleServiceTests
   end
 
   def test_rejects_direct_upload_if_client_manipulates_the_encryption_key
-    skip "Currently does not work, investigate"
-
     rng = Random.new(Minitest.seed)
 
     key = "#{run_id}-encrypted-key-direct-upload-#{rng.hex(4)}"
@@ -285,5 +283,13 @@ module S3CompatibleServiceTests
 
     readback_composed_bytes = @service.download(composed_key, encryption_key: k3)
     assert_equal Digest::SHA256.hexdigest(buf1 + buf2), Digest::SHA256.hexdigest(readback_composed_bytes)
+  end
+
+  # The SSE-C headers must be in the signature, so that the client can't send a key of its own
+  def assert_sse_headers_signed(url)
+    signed_headers = URI.decode_www_form(URI(url).query).to_h.fetch("X-Amz-SignedHeaders").split(";")
+    %w[algorithm key key-md5].each do |suffix|
+      assert_includes signed_headers, "x-amz-server-side-encryption-customer-#{suffix}"
+    end
   end
 end

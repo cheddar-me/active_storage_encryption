@@ -59,15 +59,11 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
     sse_headers(encryption_key)
   end
 
-  def url_for_direct_upload(key, encryption_key:, **options_for_super)
-    # With direct upload we need to remove the encryption key itself from
-    # the SDK parameters. Otherwise it does get included in the URL, but that
-    # does not make S3 actually _use_ the value - _and_ it leaks the key.
-    # We _do_ need the key MD5 to be in the signed header params, so that the client can't use an encryption key
-    # it invents by itself - it must use the one we issue it.
-    sse_options_without_key = sse_options(encryption_key).without(:sse_customer_key)
-    with_upload_options_for_customer_key(sse_options_without_key) do
-      super(key, **options_for_super)
+  def url_for_direct_upload(key, encryption_key:, expires_in:, content_type:, content_length:, checksum:, custom_metadata: {})
+    instrument :url, key: key do |payload|
+      payload[:url] = presigned_url_with_signed_sse_headers(key, :put, encryption_key:, expires_in: expires_in.to_i,
+        content_type: content_type, content_length: content_length, content_md5: checksum,
+        metadata: custom_metadata, whitelist_headers: ["content-length"], **upload_options)
     end
   end
 
@@ -157,9 +153,7 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
     }
   end
 
-  # This is the same as sse_options but expressed with raw header names.
-  # The algorithm and the key MD5 are also in the presigned URL, but DigitalOcean Spaces
-  # ignores SSE-C query params and only accepts them as headers.
+  # This is the same as sse_options but expressed with raw header names
   def sse_headers(encryption_key)
     sdk_sse_options = sse_options(encryption_key)
     {
@@ -181,16 +175,20 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
     when :stream
       private_url_for_streaming_via_controller(key, encryption_key:, **options)
     when :require_headers
-      sse_options_for_presigned_url = sse_options(encryption_key)
-
-      # Remove the key itself. If we pass it to the SDK - it will leak the key (the key will be in the URL),
-      # but the download will still fail.
-      sse_options_for_presigned_url.delete(:sse_customer_key)
-
-      options_for_super = options.merge(sse_options_for_presigned_url) # The "rest" kwargs for super are the `client_options`
-      options_for_super.delete(:blob_byte_size) # This is not a valid S3 option
-      super(key, **options_for_super)
+      presigned_url_with_signed_sse_headers(key, :get, encryption_key:, expires_in: options.fetch(:expires_in).to_i,
+        response_content_disposition: content_disposition_with(type: options.fetch(:disposition), filename: options.fetch(:filename)),
+        response_content_type: options.fetch(:content_type))
     end
+  end
+
+  # The stock S3Service uses `presigned_url`, which hoists all x-amz-* headers into the query string.
+  # That has two problems with SSE-C: the key would leak into the URL, and some providers
+  # (DigitalOcean Spaces) ignore SSE-C params in the query string. `presigned_request` keeps them
+  # as signed headers instead - the client then has to send exactly those values, so it also
+  # can't swap the encryption key for one of its own. See `sse_headers` for what gets sent.
+  def presigned_url_with_signed_sse_headers(key, method, encryption_key:, **params)
+    url, _headers_the_client_must_send = object_for(key).presigned_request(method, **params, **sse_options(encryption_key))
+    url
   end
 
   def public_url(key, **client_opts)
