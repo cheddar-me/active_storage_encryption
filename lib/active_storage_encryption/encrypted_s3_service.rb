@@ -49,10 +49,11 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
     # If we get here without an exception - the object exists in the bucket,
     # but is not encrypted. For example, it was stored using a stock S3Service.
     true
-  rescue Aws::S3::Errors::InvalidRequest
+  rescue Aws::S3::Errors::InvalidRequest, Aws::S3::Errors::InvalidArgument
     # With this exception S3 tells us that the object exists but we have to furnish
     # the encryption key (the exception will have a message with "object was stored
-    # using a form of Server Side Encryption...").
+    # using a form of Server Side Encryption..."). AWS raises InvalidRequest;
+    # S3-compatible stores such as Hetzner Object Storage raise InvalidArgument.
     true
   rescue Aws::S3::Errors::NoSuchKey
     # And this truly means the object is not present
