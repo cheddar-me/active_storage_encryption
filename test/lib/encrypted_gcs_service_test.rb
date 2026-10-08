@@ -5,15 +5,16 @@ require "test_helper"
 class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
   def config
     {
-      project_id: "sandbox-ci-25b8",
-      bucket: "sandbox-ci-testing-secure-documents",
+      project_id: ENV.fetch("GCS_PROJECT"),
+      bucket: ENV.fetch("GCS_BUCKET"),
+      credentials: JSON.parse(ENV.fetch("GCS_CREDENTIALS_JSON")),
       private_url_policy: "stream"
     }
   end
 
   setup do
-    if ENV["GOOGLE_APPLICATION_CREDENTIALS"].blank?
-      skip "You need GOOGLE_APPLICATION_CREDENTIALS set in your env and it needs to point to the JSON keyfile for GCS"
+    if ENV["GCS_PROJECT"].blank? || ENV["GCS_BUCKET"].blank? || ENV["GCS_CREDENTIALS_JSON"].blank?
+      skip "You need GCS_PROJECT, GCS_BUCKET and GCS_CREDENTIALS_JSON (the contents of a service account keyfile) set in your env to test the EncryptedGCSService"
     end
 
     @textfile = StringIO.new("Secure document that needs to be stored encrypted.")

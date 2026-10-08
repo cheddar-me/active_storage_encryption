@@ -51,6 +51,9 @@ jobs:
           DO_SPACES_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET_ACCESS_KEY }}
           DO_SPACES_BUCKET: ${{ vars.DO_SPACES_BUCKET }}
           DO_SPACES_REGION: ${{ vars.DO_SPACES_REGION }}
+          GCS_PROJECT: ${{ vars.GCS_PROJECT }}
+          GCS_BUCKET: ${{ vars.GCS_BUCKET }}
+          GCS_CREDENTIALS_JSON: ${{ secrets.GCS_CREDENTIALS_JSON }}
         run: bin/rails app:test
 
   test_rails_8:
@@ -80,4 +83,7 @@ jobs:
           DO_SPACES_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET_ACCESS_KEY }}
           DO_SPACES_BUCKET: ${{ vars.DO_SPACES_BUCKET }}
           DO_SPACES_REGION: ${{ vars.DO_SPACES_REGION }}
+          GCS_PROJECT: ${{ vars.GCS_PROJECT }}
+          GCS_BUCKET: ${{ vars.GCS_BUCKET }}
+          GCS_CREDENTIALS_JSON: ${{ secrets.GCS_CREDENTIALS_JSON }}
         run: bin/rails app:test
