@@ -20,12 +20,14 @@ The disk, mirror and overrides tests need nothing. The tests for the cloud servi
 
 ### EncryptedS3Service on AWS
 
-`test/lib/encrypted_s3_service_test.rb`, against the `active-storage-encryption-test-bucket` bucket in `eu-central-1`.
+`test/lib/encrypted_s3_service_test.rb`
 
 | Variable | Required | On CI |
 | --- | --- | --- |
 | `AWS_ACCESS_KEY_ID` | yes | secret |
 | `AWS_SECRET_ACCESS_KEY` | yes | secret |
+| `AWS_S3_BUCKET` | yes | variable |
+| `AWS_S3_REGION` | yes | variable |
 
 ### EncryptedS3Service on DigitalOcean Spaces
 
