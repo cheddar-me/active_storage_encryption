@@ -354,7 +354,7 @@ DEPENDENCIES
   rails (< 8.0)
   rake
   sqlite3
-  standard (>= 1.35.1)
+  standard (= 1.45.0)
   stringio
 
 BUNDLED WITH

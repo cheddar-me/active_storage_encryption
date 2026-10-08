@@ -39,7 +39,7 @@ Gem::Specification.new do |spec|
 
   # Code formatting, linting and testing
   spec.add_development_dependency "sqlite3"
-  spec.add_development_dependency "standard", ">= 1.35.1"
+  spec.add_development_dependency "standard", "1.45.0"
   spec.add_development_dependency "appraisal"
   spec.add_development_dependency "magic_frozen_string_literal"
   spec.add_development_dependency "rake"
