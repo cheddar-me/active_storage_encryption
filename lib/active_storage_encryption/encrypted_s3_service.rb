@@ -19,12 +19,7 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
 
   def headers_for_direct_upload(key, encryption_key:, **options_for_super)
     # See https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html#specifying-s3-c-encryption
-    # This is the same as sse_options but expressed with raw header names
-    sdk_sse_options = sse_options(encryption_key)
-    super(key, **options_for_super).merge!({
-      "x-amz-server-side-encryption-customer-key" => Base64.strict_encode64(sdk_sse_options.fetch(:sse_customer_key)),
-      "x-amz-server-side-encryption-customer-key-MD5" => Digest::MD5.base64digest(sdk_sse_options.fetch(:sse_customer_key))
-    })
+    super(key, **options_for_super).merge!(sse_headers(encryption_key))
   end
 
   def exist?(key)
@@ -61,10 +56,7 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
   end
 
   def headers_for_private_download(key, encryption_key:, **)
-    sdk_sse_options = sse_options(encryption_key)
-    {
-      "x-amz-server-side-encryption-customer-key" => Base64.strict_encode64(sdk_sse_options.fetch(:sse_customer_key))
-    }
+    sse_headers(encryption_key)
   end
 
   def url_for_direct_upload(key, encryption_key:, **options_for_super)
@@ -162,6 +154,18 @@ class ActiveStorageEncryption::EncryptedS3Service < ActiveStorage::Service::S3Se
       sse_customer_algorithm: "AES256",
       sse_customer_key: truncated_key_bytes,
       sse_customer_key_md5: Digest::MD5.base64digest(truncated_key_bytes)
+    }
+  end
+
+  # This is the same as sse_options but expressed with raw header names.
+  # The algorithm and the key MD5 are also in the presigned URL, but DigitalOcean Spaces
+  # ignores SSE-C query params and only accepts them as headers.
+  def sse_headers(encryption_key)
+    sdk_sse_options = sse_options(encryption_key)
+    {
+      "x-amz-server-side-encryption-customer-algorithm" => sdk_sse_options.fetch(:sse_customer_algorithm),
+      "x-amz-server-side-encryption-customer-key" => Base64.strict_encode64(sdk_sse_options.fetch(:sse_customer_key)),
+      "x-amz-server-side-encryption-customer-key-MD5" => sdk_sse_options.fetch(:sse_customer_key_md5)
     }
   end
 

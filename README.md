@@ -105,7 +105,7 @@ The `EncryptedS3Service` supports most of the features of the stock `S3Service`.
 
 Implementation details:
 
-* SSE-C is a feature that AWS provides. Other services offering S3-compatible object storage (Minio, Ceph...) may not support this feature - check the documentation of your provider.
+* SSE-C is a feature that AWS provides. Other services offering S3-compatible object storage (Minio, Ceph...) may not support this feature - check the documentation of your provider. The test suite runs against AWS S3 and [DigitalOcean Spaces](#digitalocean-spaces).
 * Presigned URLs are subject to the [same constraints](#private-url-constraints) as with GCS. S3 will only serve you objects if you supply the headers. If you wish to generate URLs that can be used without headers, streaming goes through our provided controller.
 * The `#compose` operation is not hopless with S3, so there is no reduction in functionality vis-a-vis the standard `S3Service`.
 * You will need to enable the following headers in your bucket CORS configuration for `PUT` requests:
@@ -114,6 +114,24 @@ Implementation details:
   * `x-amz-server-side-encryption-customer-key-MD5`
 
 While S3 allows the `x-amz-server-side-encryption-customer-key-MD5` to be added to the signed URL for PUT, the value of that header gets removed from the signature due to the process called "hoisting" - which occurs during the signing of the URL. So your client _may_ override the encryption key you give it forcibly, by replacing the `x-amz-server-side-encryption-customer-key` and `x-amz-server-side-encryption-customer-key-MD5`. This can produce Blobs encrypted with a key you do not have. If you want to exclude the possibility of this, you need to perform an integrity check on your uploads. The integrity check will fail if the encryption key has been overridden in this manner, and you can then destroy the Blob. This problem has been reported to AWS.
+
+#### DigitalOcean Spaces
+
+Spaces supports SSE-C and works with `EncryptedS3Service` - point the service at the Spaces endpoint:
+
+```yaml
+# storage.yml
+encrypted_spaces:
+  service: EncryptedS3
+  private_url_policy: stream
+  access_key_id: <%= ENV["DO_SPACES_ACCESS_KEY_ID"] %>
+  secret_access_key: <%= ENV["DO_SPACES_SECRET_ACCESS_KEY"] %>
+  region: fra1
+  endpoint: https://fra1.digitaloceanspaces.com
+  bucket: my-bucket
+```
+
+Spaces ignores the SSE-C parameters in the query string of a presigned URL and only accepts them as headers. The headers returned by `headers_for_direct_upload` and `headers_for_private_download` include all three of them, so make sure your client sends all of them - and allow all three in your CORS configuration.
 
 ### EncryptedDiskSevice - Filesystem
 
