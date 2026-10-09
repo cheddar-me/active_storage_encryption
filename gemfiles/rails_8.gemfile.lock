@@ -126,6 +126,8 @@ GEM
       logger
     faraday-net_http (3.4.0)
       net-http (>= 0.5.0)
+    gcs_put (0.2.0)
+      google-cloud-storage (~> 1.40)
     globalid (1.2.1)
       activesupport (>= 6.1)
     google-apis-core (0.16.0)
@@ -347,6 +349,7 @@ DEPENDENCIES
   active_storage_encryption!
   appraisal
   aws-sdk-s3
+  gcs_put (~> 0.2)
   google-cloud-storage
   magic_frozen_string_literal
   net-http

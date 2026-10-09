@@ -89,11 +89,14 @@ The `EncryptedGCSService` supports most of the features of the stock `GCSService
 * Upload and download
 * Presigned PUT requests (direct upload)
 * Preset metadata (content-disposition, content-type etc.)
+* `#compose`
+
+Add `google-cloud-storage` and `gcs_put` to your Gemfile to use it.
 
 Implementation details:
 
 * Presigned URLs are subject to the [same constraints](#private-url-constraints) as the other providers. GCP will only serve you objects if you supply the headers. If you wish to generate URLs that can be used without headers, streaming goes through our provided controller.
-* In the stock `Service` the `#compose` operation is "hopless": you tell GCP to "splice" multiple objects in-situ without having to download their content into your application. With encryption, `#compose` can't be performed "hoplessly" as the "compose" RPC call for encrypted objects requires the source objects be encrypted with the same encryption key - all of them. The resulting object will also be encrypted with that key. With this gem, every `Blob` gets encrypted with its own random key, so performing a `#compose` requires downloading the objects, decrypting them and reuploading the composed object. This gets done in a streaming manner to conserve disk space and memory (we provide a resumable upload client for GCS even though the official SDK does not), but the operation is no longer "hopless".
+* In the stock `Service` the `#compose` operation is "hopless": you tell GCP to "splice" multiple objects in-situ without having to download their content into your application. With encryption, `#compose` can't be performed "hoplessly" as the "compose" RPC call for encrypted objects requires the source objects be encrypted with the same encryption key - all of them. The resulting object will also be encrypted with that key. With this gem, every `Blob` gets encrypted with its own random key, so performing a `#compose` requires downloading the objects, decrypting them and reuploading the composed object. This gets done in a streaming manner to conserve disk space and memory (using a resumable upload via [gcs_put](https://github.com/julik/gcs_put), since the official SDK can't stream an upload of unknown size), but the operation is no longer "hopless".
 * You will need to enable the following headers in your bucket CORS configuration for `PUT` requests:
   * `x-goog-encryption-algorithm`
   * `x-goog-encryption-key`

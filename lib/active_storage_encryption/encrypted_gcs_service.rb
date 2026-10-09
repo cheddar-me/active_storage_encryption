@@ -2,6 +2,7 @@
 
 require "active_storage/service/gcs_service"
 require "google/cloud/storage/service"
+require "gcs_put"
 
 class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCSService
   include ActiveStorageEncryption::PrivateUrlPolicy
@@ -109,10 +110,26 @@ class ActiveStorageEncryption::EncryptedGCSService < ActiveStorage::Service::GCS
     end
   end
 
-  def compose(source_keys, destination_key, encryption_key:, filename: nil, content_type: nil, disposition: nil, custom_metadata: {})
-    # Because we will always have a different encryption_key on a blob when created and google requires us to have the same encryption_keys on all source blobs
-    # we need to work this out a bit more. For now we don't need this and thus won't support it in this service.
-    raise NotImplementedError, "Currently composing files is not supported"
+  def compose(source_keys, destination_key, source_encryption_keys:, encryption_key:, filename: nil, content_type: nil, disposition: nil, custom_metadata: {})
+    if source_keys.length != source_encryption_keys.length
+      raise ArgumentError, "With #{source_keys.length} keys to compose there should be exactly as many source_encryption_keys, but got #{source_encryption_keys.length}"
+    end
+
+    # GCS can only compose objects which share one encryption key, and every blob has its own -
+    # so we have to download the sources and upload them again
+    headers = {
+      **gcs_encryption_key_headers(derive_service_encryption_key(encryption_key)),
+      **custom_metadata_headers(custom_metadata)
+    }
+    headers["Content-Disposition"] = content_disposition_with(type: disposition, filename: filename) if disposition && filename
+    headers["Cache-Control"] = @config[:cache_control] if @config[:cache_control].present?
+    signed_url_options = @config[:iam] ? {issuer:, signer:} : {}
+
+    GCSPut.with_gcs_file(file_for(destination_key), content_type: content_type || "binary/octet-stream", headers:, signed_url_options:) do |destination|
+      source_keys.zip(source_encryption_keys).each do |(source_key, source_encryption_key)|
+        stream(source_key, encryption_key: source_encryption_key) { |chunk| destination.write(chunk) }
+      end
+    end
   end
 
   private

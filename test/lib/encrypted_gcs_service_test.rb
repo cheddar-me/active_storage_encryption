@@ -5,15 +5,16 @@ require "test_helper"
 class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
   def config
     {
-      project_id: "sandbox-ci-25b8",
-      bucket: "sandbox-ci-testing-secure-documents",
+      project_id: ENV.fetch("GCS_PROJECT"),
+      bucket: ENV.fetch("GCS_BUCKET"),
+      credentials: JSON.parse(ENV.fetch("GCS_CREDENTIALS_JSON")),
       private_url_policy: "stream"
     }
   end
 
   setup do
-    if ENV["GOOGLE_APPLICATION_CREDENTIALS"].blank?
-      skip "You need GOOGLE_APPLICATION_CREDENTIALS set in your env and it needs to point to the JSON keyfile for GCS"
+    if ENV["GCS_PROJECT"].blank? || ENV["GCS_BUCKET"].blank? || ENV["GCS_CREDENTIALS_JSON"].blank?
+      skip "You need GCS_PROJECT, GCS_BUCKET and GCS_CREDENTIALS_JSON (the contents of a service account keyfile) set in your env to test the EncryptedGCSService"
     end
 
     @textfile = StringIO.new("Secure document that needs to be stored encrypted.")
@@ -149,6 +150,26 @@ class ActiveStorageEncryption::EncryptedGCSServiceTest < ActiveSupport::TestCase
     end
     readback = @service.download(key, encryption_key:)
     assert_equal readback, plaintext_upload_bytes
+  end
+
+  def test_compose
+    rng = Random.new(Minitest.seed)
+
+    parts = 7.times.map do
+      {key: "#{run_id}-part-#{rng.hex(4)}", encryption_key: rng.bytes(32), bytes: rng.bytes(1024)}
+    end
+
+    parts.each do |part|
+      @service.upload(part[:key], StringIO.new(part[:bytes]), encryption_key: part[:encryption_key])
+    end
+
+    source_keys = parts.map { |part| part[:key] }
+    source_encryption_keys = parts.map { |part| part[:encryption_key] }
+    destination_key = "#{run_id}-comp-#{rng.hex(4)}"
+    encryption_key = rng.bytes(32)
+
+    @service.compose(source_keys, destination_key, source_encryption_keys:, encryption_key:)
+    assert_equal parts.map { |part| part[:bytes] }.join, @service.download(destination_key, encryption_key:)
   end
 
   def test_accepts_direct_upload_with_signature_and_headers
