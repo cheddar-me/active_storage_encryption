@@ -60,6 +60,10 @@ module ActiveStorageEncryption
     def download_chunk(key, range, encryption_key:)
       instrument :download_chunk, key: key, range: range do
         scheme = create_scheme(key, encryption_key)
+        # The schemes only understand inclusive ranges, but ActiveStorage passes exclusive ones
+        # in places - `0...4.kilobytes` when it identifies a blob, for instance. The stock
+        # S3Service and GCSService both honour `exclude_end?`, so we have to as well.
+        range = (range.begin..(range.end - 1)) if range.exclude_end?
         File.open(path_for(key), "rb") do |file|
           scheme.decrypt_range(from_ciphertext_io: file, range:)
         end

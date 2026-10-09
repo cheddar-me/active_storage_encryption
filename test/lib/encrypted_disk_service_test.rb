@@ -267,6 +267,18 @@ class ActiveStorageEncryption::EncryptedDiskServiceTest < ActiveSupport::TestCas
     assert_equal content, downloaded_blob
   end
 
+  def test_download_chunk_honors_an_exclusive_range
+    storage_blob_key = "key-1"
+    encryption_key = Random.bytes(68)
+    plaintext_upload_bytes = generate_random_binary_string
+    @service.upload(storage_blob_key, StringIO.new(plaintext_upload_bytes), encryption_key: encryption_key)
+
+    # ActiveStorage reads `0...4.kilobytes` when it identifies a blob, and the stock services
+    # return 4096 bytes for that - not 4097.
+    exclusive_range = 0...4.kilobytes
+    assert_equal plaintext_upload_bytes[exclusive_range], @service.download_chunk(storage_blob_key, exclusive_range, encryption_key: encryption_key)
+  end
+
   def generate_random_binary_string(size = 17.kilobytes + 13)
     Random.bytes(size)
   end
