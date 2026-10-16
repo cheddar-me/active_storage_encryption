@@ -181,7 +181,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     encryption_key = rng.bytes(32)
     @service.upload(key, StringIO.new(rng.bytes(512)).binmode, encryption_key: encryption_key)
 
-    streaming_url = ActiveStorageEncryption.stub(:token_encryptor, -> { other_encryptor }) do
+    streaming_url = with_token_encryptor(other_encryptor) do
       @service.url(key, encryption_key: encryption_key,
         filename: ActiveStorage::Filename.new("private.doc"), expires_in: 3.seconds,
         disposition: "inline", content_type: "binary/octet-stream",
@@ -249,5 +249,18 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
 
     get streaming_url, headers: {"HTTP_X_ACTIVE_STORAGE_ENCRYPTION_KEY" => Base64.strict_encode64(blob.encryption_key)}
     assert_response :forbidden # With headers
+  end
+
+  private
+
+  # Swaps in another token encryptor for the duration of the block. Done by hand rather than
+  # with Minitest::Mock#stub, so that the suite does not depend on minitest/mock - which
+  # minitest 6 moved into a gem of its own.
+  def with_token_encryptor(encryptor)
+    original = ActiveStorageEncryption.method(:token_encryptor)
+    ActiveStorageEncryption.define_singleton_method(:token_encryptor) { encryptor }
+    yield
+  ensure
+    ActiveStorageEncryption.define_singleton_method(:token_encryptor, original)
   end
 end
