@@ -27,7 +27,6 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
       key: params[:key],
       encryption_key: params[:encryption_key],
       blob_byte_size: params[:blob_byte_size],
-      filename: params[:filename],
       disposition: params[:disposition] || DEFAULT_BLOB_STREAMING_DISPOSITION,
       type: params[:content_type])
   rescue ActiveStorage::FileNotFoundError
@@ -70,7 +69,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
     service
   end
 
-  def stream_blob(service:, key:, blob_byte_size:, encryption_key:, filename:, disposition:, type:)
+  def stream_blob(service:, key:, blob_byte_size:, encryption_key:, disposition:, type:)
     # The ActiveStorage::ProxyController buffers the entire response into memory
     # when serving multipart byte ranges, which is extremely inefficient. We use our own thing
     # which can actually stream from the Service directly, using byte ranges. This limits the
@@ -111,6 +110,8 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
 
     response.status = status
     headers.each { |(header, value)| response.headers[header] = value }
+    # The token carries the full header value, filename included, built by the service when the URL was signed
+    response.headers["Content-Disposition"] = disposition unless service.filename_in_path?
     self.response_body = ranges_body
   end
 end

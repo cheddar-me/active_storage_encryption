@@ -64,6 +64,36 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
     assert_equal plaintext, response.body
   end
 
+  test "show() keeps the filename in the URL path and sends no Content-Disposition by default" do
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("x"), content_type: "application/pdf", filename: "statement.pdf", service_name: @service.name)
+
+    streaming_url = blob.url(disposition: "attachment")
+    assert streaming_url.end_with?("/statement.pdf")
+
+    get streaming_url
+
+    assert_response :success
+    assert_nil response.headers["content-disposition"]
+  end
+
+  test "show() sends the filename as Content-Disposition when it is kept out of the URL" do
+    @service.filename_in_path = false
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("x"), content_type: "application/pdf", filename: "Zeugenaussage Müller.pdf", service_name: @service.name)
+
+    attachment_url = blob.url(disposition: "attachment")
+    inline_url = blob.url(disposition: "inline")
+    assert attachment_url.end_with?("/file")
+
+    get attachment_url
+
+    assert_response :success
+    assert_equal %(attachment; filename="Zeugenaussage Muller.pdf"; filename*=UTF-8''Zeugenaussage%20M%C3%BCller.pdf), response.headers["content-disposition"]
+
+    get inline_url
+
+    assert_match(/\Ainline; filename="Zeugenaussage Muller.pdf"/, response.headers["content-disposition"])
+  end
+
   test "show() serves a blob of 0 size" do
     Random.new(Minitest.seed)
     plaintext = "".b
