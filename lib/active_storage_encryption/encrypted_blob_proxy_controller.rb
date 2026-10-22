@@ -111,7 +111,7 @@ class ActiveStorageEncryption::EncryptedBlobProxyController < ActionController::
     response.status = status
     headers.each { |(header, value)| response.headers[header] = value }
     # The token carries the full header value, filename included, built by the service when the URL was signed
-    response.headers["Content-Disposition"] = disposition unless service.filename_in_streaming_url?
+    response.headers["Content-Disposition"] = disposition unless service.filename_in_path?
     self.response_body = ranges_body
   end
 end

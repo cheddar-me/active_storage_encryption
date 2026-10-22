@@ -77,7 +77,7 @@ class ActiveStorageEncryptionEncryptedBlobProxyControllerTest < ActionDispatch::
   end
 
   test "show() sends the filename as Content-Disposition when it is kept out of the URL" do
-    @service.filename_in_streaming_url = false
+    @service.filename_in_path = false
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("x"), content_type: "application/pdf", filename: "Zeugenaussage Müller.pdf", service_name: @service.name)
 
     attachment_url = blob.url(disposition: "attachment")
